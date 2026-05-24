@@ -26,7 +26,6 @@
     <div v-else class="bg-white rounded-xl border border-gray-100 p-5">
       <BaseTable
         :columns="[
-          { key: 'product_sku', label: 'SKU' },
           { key: 'product_name', label: '商品名称' },
           { key: 'product_specification', label: '规格' },
           { key: 'quantity', label: '库存数量', align: 'right' },
@@ -40,9 +39,6 @@
         <template #cell="{ column, row }">
           <template v-if="column.key === 'product_name'">
             <span class="font-medium text-gray-900">{{ row.product_name }}</span>
-          </template>
-          <template v-else-if="column.key === 'product_sku'">
-            <span class="text-gray-600">{{ row.product_sku || '-' }}</span>
           </template>
           <template v-else-if="column.key === 'product_specification'">
             <span class="text-gray-600">{{ row.product_specification || '-' }}</span>

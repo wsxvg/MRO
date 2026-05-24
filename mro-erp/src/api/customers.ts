@@ -5,6 +5,7 @@ import type { Customer, CustomerPrice, ApiResult, ListResponse } from '@/types'
 
 export async function fetchCustomers(params?: {
   search?: string
+  type?: string
   page?: number
   limit?: number
 }): Promise<ListResponse<Customer>> {
@@ -14,6 +15,10 @@ export async function fetchCustomers(params?: {
     query = query.or(
       `name.ilike.%${params.search}%,contact_person.ilike.%${params.search}%,phone.ilike.%${params.search}%`
     )
+  }
+
+  if (params?.type) {
+    query = query.eq('type', params.type)
   }
 
   const page = params?.page ?? 1

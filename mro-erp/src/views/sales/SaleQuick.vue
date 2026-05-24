@@ -9,13 +9,9 @@
       </router-link>
       <h1 class="text-xl font-bold text-gray-900">快速收银</h1>
       <div class="ml-auto flex items-center gap-3">
-        <select v-model="form.customer_id" class="input text-sm py-1.5 w-44" required>
-          <option value="">客户: 散客</option>
+        <select v-model="form.customer_id" class="input text-sm py-1.5 w-44">
+          <option :value="null">客户: 默认零售</option>
           <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-        <select v-model="form.warehouse_id" class="input text-sm py-1.5 w-40" required>
-          <option value="">仓库: 请选择</option>
-          <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
         </select>
       </div>
     </div>
@@ -78,30 +74,8 @@
             <span class="text-xl font-bold text-gray-900">¥{{ total.toFixed(2) }}</span>
           </div>
 
-          <!-- Payment Methods -->
-          <div>
-            <div class="flex gap-2">
-              <button :class="form.payment_method === 'cash' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors" @click="form.payment_method = 'cash'">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                现金
-              </button>
-              <button :class="form.payment_method === 'wechat' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors" @click="form.payment_method = 'wechat'">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178A1.17 1.17 0 014.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178 1.17 1.17 0 01-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 01.598.082l1.584.926a.272.272 0 00.14.045.246.246 0 00.241-.245c0-.06-.024-.12-.04-.178l-.325-1.233a.49.49 0 01.177-.554C23.028 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-7.062-6.122zm-2.18 2.164c.535 0 .968.44.968.982a.975.975 0 01-.968.983.975.975 0 01-.969-.983c0-.542.434-.982.969-.982zm4.36 0c.535 0 .969.44.969.982a.975.975 0 01-.969.983.975.975 0 01-.968-.983c0-.542.433-.982.968-.982z"/></svg>
-                微信
-              </button>
-              <button :class="form.payment_method === 'alipay' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors" @click="form.payment_method = 'alipay'">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M21.422 15.358c-3.22-1.386-6.847-2.904-9.926-4.266 1.871-2.025 3.955-5.183 3.034-6.91-.767-1.44-3.753-1.267-5.307.176-1.493 1.39-2.07 3.531-1.49 5.976-2.896 1.32-5.762 2.71-8.083 3.869-.384.192-.59.443-.488.725.126.35.661.45 1.193.39.16-.044.574-.15.574-.15l6.564-2.278c.306.164.627.336.961.514-1.316 2.849-2.855 6.332-2.96 6.594-1.135 2.779-1.583 2.043-3.251.14l-.03 1.517c.916 1.259 3.105 3.55 5.64 3.55 2.267 0 3.957-1.983 5.653-4.36 1.364-1.906 2.743-4.164 4.228-6.647 1.108.495 2.043.914 2.624 1.173.142.076.421.172.705.172.548 0 1.015-.386 1.015-.973 0-.24-.111-.472-.328-.648zm-10.95-6.56c-.192-1.364.194-2.718.882-3.426.537-.557 1.47-.919 2.113-.74.168.542.117 1.647-.709 2.908-.606.922-1.459 1.67-2.286 1.258z"/></svg>
-                支付宝
-              </button>
-              <button :class="form.payment_method === 'transfer' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors" @click="form.payment_method = 'transfer'">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" /></svg>
-                挂账
-              </button>
-            </div>
-          </div>
-
           <!-- Complete Sale -->
-          <button class="w-full btn bg-gray-900 text-white hover:bg-gray-800 border-0 py-3 text-base font-semibold" :disabled="saving || items.length === 0 || !form.customer_id || !form.warehouse_id" @click="handleQuickSale">
+          <button class="w-full btn bg-gray-900 text-white hover:bg-gray-800 border-0 py-3 text-base font-semibold" :disabled="saving || items.length === 0 || !defaultWarehouse" @click="handleQuickSale">
             {{ saving ? '保存中...' : '✓ 完成销售' }}
           </button>
         </div>
@@ -143,7 +117,7 @@
             </div>
           </div>
           <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            <div v-for="p in displayProducts" :key="p.id" class="group relative bg-white border border-gray-200 rounded-xl p-3 cursor-pointer hover:border-gray-900 hover:shadow-sm transition-all" @click="selectProduct(p)">
+            <div v-for="p in displayProducts" :key="p.id" class="group relative bg-white border border-gray-200 rounded-xl p-3 cursor-pointer hover:border-gray-900 hover:shadow-sm transition-all" @click="selectProduct(p)" @mouseenter="showStock(p.id)" @mouseleave="hoveredProductId = null">
               <div class="text-sm font-medium text-gray-900 truncate group-hover:text-gray-900">{{ p.name }}</div>
               <div class="text-xs text-gray-400 mt-0.5 truncate">{{ p.sku || '' }} {{ p.specification || '' }}</div>
               <div class="flex items-center justify-between mt-2">
@@ -152,6 +126,14 @@
               </div>
               <div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+              </div>
+              <!-- Per-Warehouse Stock Tooltip -->
+              <div v-if="hoveredProductId === p.id && productStocks[p.id]?.length" class="absolute z-50 left-0 top-full mt-1 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                <div class="font-medium mb-1 text-gray-300">各仓库库存</div>
+                <div v-for="s in productStocks[p.id]" :key="s.warehouse_id" class="flex justify-between gap-3">
+                  <span>{{ s.warehouse_name }}</span>
+                  <span :class="s.quantity < 0 ? 'text-red-400' : 'text-green-300'">{{ s.quantity }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -170,27 +152,28 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchCustomers } from '@/api'
-import { fetchWarehouses } from '@/api'
+import { fetchDefaultWarehouse } from '@/api'
 import { fetchProducts, fetchCategories } from '@/api'
-import { createSalesOrder, saveSalesOrderItems, completeSalesOrder, createPayment } from '@/api'
-import type { Customer, Warehouse, Product, Category } from '@/types'
+import { fetchStockByProduct } from '@/api'
+import { createSalesOrder, saveSalesOrderItems, completeSalesOrder } from '@/api'
+import type { Customer, Product, Category } from '@/types'
 
 const router = useRouter()
 const saving = ref(false); const error = ref(''); const success = ref('')
+const defaultWarehouse = ref<{ id: number } | null>(null)
 const customers = ref<Customer[]>([])
-const warehouses = ref<Warehouse[]>([])
 const categories = ref<Category[]>([])
 const allProducts = ref<Product[]>([])
 const searchQuery = ref('')
 const searchResults = ref<Product[]>([])
 const selectedCategoryId = ref<number | null>(null)
+const hoveredProductId = ref<number | null>(null)
+const productStocks = reactive<Record<number, { warehouse_id: number; warehouse_name: string; quantity: number }[]>>({})
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 const form = reactive({
   customer_id: null as number | null,
-  warehouse_id: null as number | null,
-  payment_method: 'cash' as string,
   remark: ''
 })
 
@@ -255,6 +238,19 @@ function debouncedSearch() {
   }, 300)
 }
 
+async function showStock(productId: number) {
+  hoveredProductId.value = productId
+  if (productStocks[productId]) return
+  const res = await fetchStockByProduct(productId)
+  if (res.data) {
+    productStocks[productId] = res.data.map((s: any) => ({
+      warehouse_id: s.warehouse_id,
+      warehouse_name: s.warehouse_name,
+      quantity: s.quantity
+    }))
+  }
+}
+
 async function doSearch() {
   const q = searchQuery.value.trim()
   if (!q) { searchResults.value = []; return }
@@ -266,16 +262,19 @@ async function doSearch() {
 
 async function handleQuickSale() {
   saving.value = true; error.value = ''; success.value = ''
+  if (!defaultWarehouse.value) { error.value = '未配置默认仓库'; saving.value = false; return }
   try {
-    const data = {
-      customer_id: form.customer_id!,
-      warehouse_id: form.warehouse_id!,
+    const data: Record<string, any> = {
+      warehouse_id: defaultWarehouse.value.id,
       total_amount: total.value,
       paid_amount: total.value,
       remark: form.remark || null,
       status: 'completed'
-    } as any
-    const orderRes = await createSalesOrder(data)
+    }
+    if (form.customer_id) {
+      data.customer_id = form.customer_id
+    }
+    const orderRes = await createSalesOrder(data as any)
     if (!orderRes.data) { error.value = orderRes.error || '保存失败'; return }
 
     const orderId = orderRes.data.id
@@ -288,15 +287,6 @@ async function handleQuickSale() {
     const itemRes = await saveSalesOrderItems(orderId, itemData)
     if (itemRes.error) { error.value = itemRes.error; return }
 
-    // Create payment record
-    await createPayment({
-      sales_order_id: orderId,
-      amount: total.value,
-      payment_method: form.payment_method as any,
-      paid_at: new Date().toISOString(),
-      remark: null
-    })
-
     const completeRes = await completeSalesOrder(orderId)
     if (completeRes.error) { error.value = completeRes.error; return }
 
@@ -308,14 +298,14 @@ async function handleQuickSale() {
 }
 
 onMounted(async () => {
-  const [cRes, wRes, pRes, catRes] = await Promise.all([
-    fetchCustomers({}),
-    fetchWarehouses(),
+  const [defRes, cRes, pRes, catRes] = await Promise.all([
+    fetchDefaultWarehouse(),
+    fetchCustomers({ type: 'retail' }),
     fetchProducts({}),
     fetchCategories()
   ])
+  if (defRes.data) defaultWarehouse.value = defRes.data
   if (cRes.data) customers.value = cRes.data
-  if (wRes.data) warehouses.value = wRes.data
   if (pRes.data) allProducts.value = pRes.data
   if (catRes.data) categories.value = catRes.data
 })

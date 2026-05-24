@@ -7,7 +7,6 @@ export async function fetchStockReport(params?: {
 }): Promise<ListResponse<{
   product_id: number
   product_name: string
-  product_sku: string
   warehouse_name: string
   quantity: number
   min_stock: number
@@ -17,7 +16,7 @@ export async function fetchStockReport(params?: {
   let query = supabase
     .from('stocks')
     .select(
-      '*, products!left(name, sku, min_stock, cost_price), warehouses!left(name)',
+      '*, products!left(name, min_stock, cost_price), warehouses!left(name)',
       { count: 'exact' }
     )
 
@@ -30,7 +29,6 @@ export async function fetchStockReport(params?: {
   const mapped = (data ?? []).map((s: any) => ({
     product_id: s.product_id,
     product_name: s.products?.name ?? '',
-    product_sku: s.products?.sku ?? '',
     warehouse_name: s.warehouses?.name ?? '',
     quantity: s.quantity,
     min_stock: s.products?.min_stock ?? 0,

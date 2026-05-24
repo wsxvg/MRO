@@ -1,7 +1,7 @@
-# UI 统一重构实现计划
+# UI 统一重构实现计划 [已归档]
 
-> **面向 AI 代理的工作者：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 逐任务实现此计划。步骤使用复选框（`- [ ]`）语法来跟踪进度。
-> 所有包含中文的文件必须使用 UTF-8 编码写入。禁止使用 PowerShell 的 Out-File / `>` / Set-Content 写入含中文的文件。
+> **当前状态**：核心组件已创建，页面级重构进度待确认。
+> 本计划保留作为历史参考，新页面直接使用现有 Base 组件。
 
 **目标：** 将所有列表页、表单页、报表页的视觉风格统一为 Dashboard 的高端简洁风（Tailwind CSS 实现，不引入第三方 UI 库）
 

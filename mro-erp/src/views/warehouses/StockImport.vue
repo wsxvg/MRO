@@ -41,7 +41,7 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-gray-500 border-b">
-                <th class="pb-2 font-medium">商品SKU</th>
+                <th class="pb-2 font-medium">商品条码</th>
                 <th class="pb-2 font-medium">商品名称</th>
                 <th class="pb-2 font-medium text-right">数量</th>
               </tr>

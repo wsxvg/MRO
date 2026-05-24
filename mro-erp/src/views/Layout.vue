@@ -9,8 +9,15 @@
       <!-- Logo -->
       <div :class="['flex items-center h-14 border-b border-gray-100', sidebarCollapsed ? 'justify-center' : 'px-4 gap-3']">
         <div class="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <circle cx="12" cy="12" r="5.5" stroke-dasharray="2 3" />
+            <circle cx="12" cy="12" r="3" stroke-dasharray="1.5 2" />
+            <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke-linecap="round" />
+            <circle cx="7.76" cy="7.76" r="0.8" />
+            <circle cx="16.24" cy="7.76" r="0.8" />
+            <circle cx="7.76" cy="16.24" r="0.8" />
+            <circle cx="16.24" cy="16.24" r="0.8" />
           </svg>
         </div>
         <span v-show="!sidebarCollapsed" class="font-bold text-gray-900 text-sm truncate">MRO 进销存</span>
@@ -50,12 +57,12 @@
           </svg>
         </button>
         <div v-show="!sidebarCollapsed" class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium text-gray-600 cursor-default">
+          <div class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
             H
           </div>
           <span class="text-sm text-gray-600">管理员</span>
         </div>
-        <div v-show="sidebarCollapsed" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium text-gray-600 cursor-default">
+        <div v-show="sidebarCollapsed" class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
           H
         </div>
       </div>
@@ -67,8 +74,15 @@
       <aside class="absolute left-0 top-0 bottom-0 w-60 bg-white shadow-xl flex flex-col">
         <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
           <div class="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <circle cx="12" cy="12" r="5.5" stroke-dasharray="2 3" />
+              <circle cx="12" cy="12" r="3" stroke-dasharray="1.5 2" />
+              <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke-linecap="round" />
+              <circle cx="7.76" cy="7.76" r="0.8" />
+              <circle cx="16.24" cy="7.76" r="0.8" />
+              <circle cx="7.76" cy="16.24" r="0.8" />
+              <circle cx="16.24" cy="16.24" r="0.8" />
             </svg>
           </div>
           <span class="font-bold text-gray-900 text-sm">MRO 进销存</span>
@@ -96,7 +110,7 @@
         <div class="border-t border-gray-100 p-4">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+              <div class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm">
                 H
               </div>
               <span class="text-sm text-gray-700">管理员</span>

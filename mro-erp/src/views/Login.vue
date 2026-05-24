@@ -89,27 +89,26 @@
       <div class="relative z-20">
         <div class="flex items-center gap-3">
           <div class="size-10 rounded-xl bg-white/5 backdrop-blur border border-white/10 flex items-center justify-center">
-            <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <!-- Outer gear ring -->
+              <circle cx="12" cy="12" r="5.5" stroke-dasharray="2 3" />
+              <!-- Inner bearing ring -->
+              <circle cx="12" cy="12" r="3" stroke-dasharray="1.5 2" />
+              <!-- Center dot -->
+              <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+              <!-- Cross spokes -->
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke-linecap="round" />
+              <!-- Diagonal bolt holes -->
+              <circle cx="7.76" cy="7.76" r="0.8" />
+              <circle cx="16.24" cy="7.76" r="0.8" />
+              <circle cx="7.76" cy="16.24" r="0.8" />
+              <circle cx="16.24" cy="16.24" r="0.8" />
             </svg>
           </div>
           <span class="text-white/90 text-lg font-semibold tracking-tight">MRO 进销存</span>
         </div>
       </div>
 
-      <!-- Bottom tagline -->
-      <div class="relative z-20 space-y-3">
-        <p class="text-2xl font-bold text-white/90 tracking-tight">工业品贸易管理</p>
-        <p class="text-sm text-white/40 max-w-sm leading-relaxed">
-          专业高效的 MRO 工业品进销存管理系统，让库存管理、采购销售轻松可控。        </p>
-      </div>
-
-      <!-- Bottom footer -->
-      <div class="relative z-20 flex items-center gap-8 text-xs text-white/20">
-        <span>© 2026 MRO 进销存系统</span>
-        <a href="#" class="hover:text-white/50 transition-colors">隐私政策</a>
-        <a href="#" class="hover:text-white/50 transition-colors">服务条款</a>
-      </div>
     </div>
 
     <!-- Right Login Panel -->

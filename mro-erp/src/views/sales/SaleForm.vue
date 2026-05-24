@@ -2,7 +2,7 @@
   <div class="max-w-5xl mx-auto py-6">
     <!-- Header -->
     <div class="flex items-center gap-4 mb-6">
-      <router-link to="/sales" class="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors">
+      <router-link to="/sales" class="text-gray-500 hover:text-gray-700">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
@@ -13,11 +13,11 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left: 商品明细 -->
       <div class="lg:col-span-2 space-y-6">
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
-          <div class="flex items-center gap-3 mb-6">
-            <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-sm font-bold">1</span>
-            <h2 class="text-lg font-bold text-gray-900">商品明细</h2>
-          </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+          <h2 class="text-base font-semibold text-gray-900 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-primary-100 text-primary-600 text-xs flex items-center justify-center font-bold">1</span>
+            商品明细
+          </h2>
 
           <!-- Items header -->
           <div class="hidden md:grid grid-cols-12 gap-3 px-1 mb-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -59,7 +59,7 @@
             </div>
           </div>
 
-          <button class="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-gray-300 text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/50 transition-all" @click="addRow">
+          <button class="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-gray-300 text-sm text-gray-500 hover:text-primary-600 hover:border-primary-300 hover:bg-primary-50/50 transition-all" @click="addRow">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
@@ -70,11 +70,11 @@
 
       <!-- Right: 单据信息 -->
       <div class="space-y-6">
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
-          <div class="flex items-center gap-3 mb-6">
-            <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-sm font-bold">2</span>
-            <h2 class="text-lg font-bold text-gray-900">单据信息</h2>
-          </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+          <h2 class="text-base font-semibold text-gray-900 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-primary-100 text-primary-600 text-xs flex items-center justify-center font-bold">2</span>
+            单据信息
+          </h2>
 
           <div class="space-y-4">
             <div>
@@ -111,8 +111,8 @@
         </div>
 
         <!-- Payment records (edit only) -->
-        <div v-if="isEdit && (formData.paid_amount ?? 0) > 0" class="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 class="text-sm font-semibold text-gray-900 mb-3">收款记录</h3>
+        <div v-if="isEdit && (formData.paid_amount ?? 0) > 0" class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+          <h3 class="text-sm font-semibold text-gray-900">收款记录</h3>
           <div class="flex items-center justify-between py-2 px-3 bg-green-50 rounded-lg">
             <span class="text-sm text-gray-600">已收款</span>
             <span class="text-sm font-semibold text-green-600">¥{{ (formData.paid_amount || 0).toFixed(2) }}</span>
@@ -121,15 +121,23 @@
 
         <!-- Actions -->
         <div class="flex gap-3">
-          <button class="flex-1 px-4 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all" :disabled="saving" @click="saveAsDraft">
+          <button class="btn-secondary flex-1" :disabled="saving" @click="saveAsDraft">
+            <svg v-if="saving" class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
             {{ saving ? '保存中...' : '保存草稿' }}
           </button>
-          <button class="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-all" :disabled="saving" @click="saveAndComplete">
-            完成销售
+          <button class="btn-primary flex-1" :disabled="saving" @click="saveAndComplete">
+            <svg v-if="saving" class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            {{ saving ? '保存中...' : '完成销售' }}
           </button>
         </div>
 
-        <div v-if="error" class="text-red-600 text-sm bg-red-50 rounded-lg p-3">{{ error }}</div>
+        <div v-if="error" class="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">{{ error }}</div>
       </div>
     </div>
   </div>
@@ -200,13 +208,14 @@ async function saveAndComplete() { await handleSubmit('completed') }
 async function handleSubmit(status: string) {
   saving.value = true; error.value = ''
   try {
+    // 始终先存为草稿，再由 RPC 原子化完成（库存扣减 + 状态变更）
     const data = {
       customer_id: form.customer_id!,
       warehouse_id: form.warehouse_id!,
       total_amount: total.value,
-      paid_amount: status === 'completed' ? total.value : 0,
+      paid_amount: 0,
       remark: form.remark || null,
-      status
+      status: 'draft'
     } as any
     const orderRes = isEdit
       ? await updateSalesOrder(Number(route.params.id), data)
@@ -220,7 +229,16 @@ async function handleSubmit(status: string) {
       cost_price: i.cost_price
     }))
     await saveSalesOrderItems(orderId, itemData)
-    if (status === 'completed') await completeSalesOrder(orderId)
+    // 仅在需要完成时调用 RPC（原子处理状态 + 扣库存）
+    if (status === 'completed') {
+      const rpcRes = await completeSalesOrder(orderId)
+      if (rpcRes.error) {
+        // RPC 失败时回退为草稿，防止出现"已完成但未扣库存"的脏数据
+        await updateSalesOrder(orderId, { status: 'draft', paid_amount: 0 })
+        error.value = rpcRes.error
+        return
+      }
+    }
     router.push('/sales')
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : '网络错误'

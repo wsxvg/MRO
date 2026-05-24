@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -168,6 +169,11 @@ const routes: RouteRecordRaw[] = [
             path: 'units',
             name: 'SettingsUnits',
             component: () => import('@/views/settings/UnitList.vue')
+          },
+          {
+            path: 'security',
+            name: 'SettingsSecurity',
+            component: () => import('@/views/settings/SecuritySettings.vue')
           }
         ]
       }
@@ -180,21 +186,18 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const requiresAuth = to.meta.requiresAuth !== false
-  const STORAGE_KEY = 'mro_auth'
-  let isLoggedIn = false
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const data = JSON.parse(raw)
-      isLoggedIn = data?.username === 'huiyou'
-    }
-  } catch { /* ignore */ }
+  const auth = useAuthStore()
 
-  if (requiresAuth && !isLoggedIn) {
+  // Ensure auth is initialized before checking login state
+  if (!auth.initialized) {
+    await auth.initialize()
+  }
+
+  if (requiresAuth && !auth.isLoggedIn) {
     next('/login')
-  } else if (to.path === '/login' && isLoggedIn) {
+  } else if (to.path === '/login' && auth.isLoggedIn) {
     next('/dashboard')
   } else {
     next()

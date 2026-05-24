@@ -4,9 +4,8 @@
       <div
         v-if="modelValue"
         class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh] overflow-y-auto"
-        @click.self="close"
       >
-        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="close" />
+        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" />
 
         <div
           class="relative w-full rounded-2xl shadow-2xl border border-gray-200 bg-white"

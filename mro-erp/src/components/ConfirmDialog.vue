@@ -4,10 +4,9 @@
       <div
         v-if="modelValue"
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
-        @click.self="close"
       >
         <!-- Overlay -->
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="close" />
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
         <!-- Panel -->
         <div

@@ -82,11 +82,16 @@ CREATE TABLE warehouses (
   name TEXT NOT NULL,
   location TEXT,
   remark TEXT,
+  is_default BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE TRIGGER trg_warehouses_updated_at
   BEFORE UPDATE ON warehouses FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- 为已有仓库添加 is_default 列并设置第一个仓库为默认
+ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT FALSE;
+UPDATE warehouses SET is_default = TRUE WHERE id = (SELECT id FROM warehouses ORDER BY id LIMIT 1);
 
 -- 1.4 products 商品
 CREATE TABLE products (
@@ -339,12 +344,7 @@ BEGIN
     -- 检查库存
     SELECT COALESCE(quantity, 0) INTO current_quantity
     FROM stocks WHERE warehouse_id = so_warehouse_id AND product_id = item_record.product_id;
-    IF current_quantity < item_record.quantity THEN
-      RAISE EXCEPTION '商品ID % 库存不足 (当前: %, 需要: %)',
-        item_record.product_id, current_quantity, item_record.quantity;
-    END IF;
-
-    -- 扣减库存
+    -- 扣减库存（允许负库存，调货场景下临时欠货可正常出库）
     UPDATE stocks SET quantity = quantity - item_record.quantity
     WHERE warehouse_id = so_warehouse_id AND product_id = item_record.product_id;
 

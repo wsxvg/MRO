@@ -88,7 +88,13 @@ async function loadData() {
     fetchProducts({})
   ])
   if (custRes.data) customerName.value = custRes.data.name
-  if (pricesRes.data) prices.value = pricesRes.data.map(p => ({ ...p, price: p.price || 0 }))
+  if (pricesRes.data) {
+    // 过滤掉已停用商品的专属价格
+    const activeProductIds = new Set((prodRes.data ?? []).map((p: any) => p.id))
+    prices.value = pricesRes.data
+      .filter(p => activeProductIds.has(p.product_id))
+      .map(p => ({ ...p, price: p.price || 0 }))
+  }
   if (prodRes.data) {
     allProducts.value = prodRes.data
     const usedIds = new Set(prices.value.map(p => p.product_id))

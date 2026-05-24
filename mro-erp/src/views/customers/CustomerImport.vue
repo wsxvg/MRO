@@ -23,6 +23,10 @@
         </div>
       </div>
 
+      <div v-if="parseError" class="card mb-6 border-red-300 bg-red-50">
+        <p class="text-sm text-red-600">{{ parseError }}</p>
+      </div>
+
       <div v-if="preview.length > 0" class="card mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">预览 ({{ preview.length }} 条)</h3>
         <div class="overflow-x-auto max-h-64 overflow-y-auto">
@@ -46,7 +50,9 @@
           </table>
         </div>
         <div class="mt-4">
-          <button class="btn-primary" @click="doImport">确认导入</button>
+          <button class="btn-primary" :disabled="saving" @click="doImport">
+            {{ saving ? '导入中...' : '确认导入' }}
+          </button>
         </div>
       </div>
 
@@ -54,6 +60,9 @@
         <h3 class="text-lg font-semibold text-gray-900 mb-2">导入结果</h3>
         <p class="text-sm">成功: <span class="text-green-600 font-medium">{{ result.success_count }}</span></p>
         <p class="text-sm">失败: <span class="text-red-600 font-medium">{{ result.error_count }}</span></p>
+        <div v-if="result.errors?.length" class="mt-2">
+          <p v-for="(err, i) in result.errors" :key="i" class="text-xs text-red-500">{{ err }}</p>
+        </div>
       </div>
     </div>
   </div>
@@ -61,25 +70,131 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import * as XLSX from 'xlsx'
+import { customersApi } from '@/api'
+
+interface PreviewRow {
+  name: string
+  contact_person?: string
+  phone?: string
+  address?: string
+}
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const preview = ref<any[]>([])
+const preview = ref<PreviewRow[]>([])
 const result = ref<{ success_count: number; error_count: number; errors?: string[] } | null>(null)
+const parseError = ref<string | null>(null)
+const saving = ref(false)
 
 function openFile() { fileInput.value?.click() }
 
+const COLUMN_MAP: Record<string, keyof PreviewRow> = {
+  '名称': 'name',
+  '联系人': 'contact_person',
+  '电话': 'phone',
+  '手机': 'phone',
+  '地址': 'address',
+  'name': 'name',
+  'contact_person': 'contact_person',
+  'contact': 'contact_person',
+  'phone': 'phone',
+  'tel': 'phone',
+  'address': 'address',
+}
+
+function parseCSV(text: string): PreviewRow[] {
+  const lines = text.split(/\r?\n/).filter(l => l.trim())
+  if (lines.length < 2) throw new Error('文件为空或只有表头')
+  const headers = lines[0].split(',').map(h => h.trim())
+  const rows: PreviewRow[] = []
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(',').map(v => v.trim())
+    const row: Record<string, string> = {}
+    headers.forEach((h, idx) => {
+      const mapped = COLUMN_MAP[h] || h
+      row[mapped] = vals[idx] ?? ''
+    })
+    if (row.name) {
+      rows.push({
+        name: row.name,
+        contact_person: row.contact_person || '',
+        phone: row.phone || '',
+        address: row.address || '',
+      })
+    }
+  }
+  return rows
+}
+
+function parseXLSX(data: ArrayBuffer): PreviewRow[] {
+  const workbook = XLSX.read(data, { type: 'array' })
+  const sheet = workbook.Sheets[workbook.SheetNames[0]]
+  const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '' })
+  if (!json.length) throw new Error('文件中没有数据')
+  const headers = Object.keys(json[0])
+  const useChinese = headers.some(h => COLUMN_MAP[h] !== undefined)
+  const rows: PreviewRow[] = []
+  for (const raw of json) {
+    let mapped: Record<string, string> = {}
+    if (useChinese) {
+      for (const [h, v] of Object.entries(raw)) {
+        const key = COLUMN_MAP[h] || h
+        mapped[key] = String(v)
+      }
+    } else {
+      mapped = raw as Record<string, string>
+    }
+    if (mapped.name) {
+      rows.push({
+        name: mapped.name,
+        contact_person: mapped.contact_person || '',
+        phone: mapped.phone || '',
+        address: mapped.address || '',
+      })
+    }
+  }
+  return rows
+}
+
 function handleFile(e: Event) {
   const input = e.target as HTMLInputElement
-  if (input.files?.length) {
-    preview.value = [
-      { name: '示例客户A', contact_person: '张三', phone: '13800138001', address: '北京市朝阳区' },
-      { name: '示例客户B', contact_person: '李四', phone: '13800138002', address: '上海市浦东新区' }
-    ]
+  const file = input.files?.[0]
+  if (!file) return
+
+  parseError.value = null
+  result.value = null
+  preview.value = []
+
+  const isXLSX = /\.xlsx?$/i.test(file.name)
+
+  if (isXLSX) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        preview.value = parseXLSX(reader.result as ArrayBuffer)
+        if (!preview.value.length) parseError.value = '未能解析到有效客户数据，请检查列名是否为"名称"'
+      } catch (err: any) {
+        parseError.value = `文件解析失败: ${err?.message || '未知错误'}`
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  } else {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        preview.value = parseCSV(reader.result as string)
+        if (!preview.value.length) parseError.value = '未能解析到有效客户数据，请检查列名是否为"名称"'
+      } catch (err: any) {
+        parseError.value = `文件解析失败: ${err?.message || '未知错误'}`
+      }
+    }
+    reader.readAsText(file)
   }
 }
 
 function downloadTemplate() {
-  const blob = new Blob(['名称,联系人,电话,地址'], { type: 'text/csv;charset=utf-8;' })
+  const bom = '\uFEFF'
+  const blob = new Blob([bom + '名称,联系人,电话,地址'], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url; a.download = '客户导入模板.csv'; a.click()
@@ -87,6 +202,27 @@ function downloadTemplate() {
 }
 
 async function doImport() {
-  result.value = { success_count: preview.value.length, error_count: 0 }
+  if (!preview.value.length) return
+  saving.value = true
+  result.value = null
+  try {
+    const items = preview.value.map(r => ({
+      name: r.name,
+      contact_person: r.contact_person || null,
+      phone: r.phone || null,
+      address: r.address || null,
+    }))
+    const res = await customersApi.import(items)
+    if (res.success) {
+      result.value = { success_count: preview.value.length, error_count: 0 }
+      preview.value = []
+    } else {
+      result.value = { success_count: 0, error_count: preview.value.length, errors: [res.error || '导入失败'] }
+    }
+  } catch (err: any) {
+    result.value = { success_count: 0, error_count: preview.value.length, errors: [err?.message || '导入失败'] }
+  } finally {
+    saving.value = false
+  }
 }
 </script>

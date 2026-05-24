@@ -116,15 +116,14 @@ async function fetchData() {
   loading.value = true
   const res = await fetchSalesOrders({
     customer_id: customerId.value || undefined,
-    status: 'completed'
+    status: 'completed',
+    date_from: dateFrom.value || undefined,
+    date_to: dateTo.value ? dateTo.value + ' 23:59:59' : undefined,
   })
   if (res.data) {
-    let filtered = res.data
-    if (dateFrom.value) filtered = filtered.filter(o => o.created_at >= dateFrom.value)
-    if (dateTo.value) filtered = filtered.filter(o => o.created_at.slice(0, 10) <= dateTo.value)
-    list.value = filtered
-    stats.totalSales = filtered.reduce((s, o) => s + (o.total_amount || 0), 0)
-    stats.totalPaid = filtered.reduce((s, o) => s + (o.paid_amount || 0), 0)
+    list.value = res.data
+    stats.totalSales = res.data.reduce((s, o) => s + (o.total_amount || 0), 0)
+    stats.totalPaid = res.data.reduce((s, o) => s + (o.paid_amount || 0), 0)
   }
   loading.value = false
 }

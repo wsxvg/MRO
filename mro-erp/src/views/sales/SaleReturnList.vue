@@ -62,7 +62,7 @@ const columns = [
 
 const list = ref<SalesReturnOrder[]>([])
 const loading = ref(true)
-const statusFilter = ref('draft')
+const statusFilter = ref('')
 
 function onFilterChange(payload: { key: string; value: string }) {
   statusFilter.value = payload.value

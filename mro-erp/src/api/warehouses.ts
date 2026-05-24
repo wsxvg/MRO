@@ -48,9 +48,12 @@ export async function fetchStocks(params?: {
 }): Promise<ListResponse<Stock>> {
   let query = supabase
     .from('stocks')
-    .select('*, products!left(name, sku, specification, min_stock), warehouses!left(name)', {
+    .select('*, products!inner(name, specification, min_stock), warehouses!left(name)', {
       count: 'exact'
     })
+
+  // 只显示启用商品的库存（软删除的商品不显示）
+  query = query.eq('products.is_active', true)
 
   if (params?.warehouse_id) {
     query = query.eq('warehouse_id', params.warehouse_id)
@@ -63,7 +66,7 @@ export async function fetchStocks(params?: {
   }
   if (params?.search) {
     query = query.or(
-      `products.name.ilike.%${params.search}%,products.sku.ilike.%${params.search}%`
+      `products.name.ilike.%${params.search}%`
     )
   }
 
@@ -79,7 +82,6 @@ export async function fetchStocks(params?: {
   const mapped = (data ?? []).map((s: any) => ({
     ...s,
     product_name: s.products?.name ?? null,
-    product_sku: s.products?.sku ?? null,
     product_specification: s.products?.specification ?? null,
     warehouse_name: s.warehouses?.name ?? null,
     min_stock: s.products?.min_stock ?? null,
@@ -88,6 +90,15 @@ export async function fetchStocks(params?: {
   }))
 
   return { data: mapped, count: count ?? 0, error: error?.message ?? null }
+}
+
+export async function fetchDefaultWarehouse(): Promise<ApiResult<Warehouse>> {
+  const { data, error } = await supabase
+    .from('warehouses')
+    .select('*')
+    .eq('is_default', true)
+    .maybeSingle()
+  return { data: data ?? null, error: error?.message ?? null }
 }
 
 export async function fetchStockByProduct(

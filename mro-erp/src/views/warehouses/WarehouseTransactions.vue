@@ -156,7 +156,7 @@ async function fetchData() {
   const res = await fetchStockTransactions({
     warehouse_id: filterWarehouseId.value ? Number(filterWarehouseId.value) : undefined,
     date_from: dateFrom.value || undefined,
-    date_to: dateTo.value || undefined,
+    date_to: dateTo.value ? dateTo.value + ' 23:59:59' : undefined,
     page: page.value,
     limit: pageSize,
   })

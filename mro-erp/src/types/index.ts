@@ -34,6 +34,7 @@ export interface Warehouse {
   name: string
   location: string | null
   remark: string | null
+  is_default: boolean
   created_at: string
   updated_at: string
 }
@@ -43,12 +44,12 @@ export interface Product {
   id: number
   category_id: number | null
   name: string
-  sku: string | null
-  barcode: string | null
+  sku?: string | null
   specification: string | null
   unit: string
   reference_price: number
   cost_price: number
+  cost_price_auto: boolean
   min_stock: number
   is_active: boolean
   remark: string | null
@@ -63,6 +64,7 @@ export interface Product {
 export interface Customer {
   id: number
   name: string
+  type: string
   contact_person: string | null
   phone: string | null
   address: string | null
@@ -93,7 +95,6 @@ export interface Stock {
   updated_at: string
   // Joined fields
   product_name?: string
-  product_sku?: string
   product_specification?: string
   warehouse_name?: string
   min_stock?: number
@@ -145,7 +146,6 @@ export interface SalesOrderItem {
   line_total: number
   // Joined fields
   product_name?: string
-  product_sku?: string
   product_specification?: string
 }
 
@@ -226,7 +226,7 @@ export interface Database {
       categories: { Row: Category; Insert: Omit<Category, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Category, 'id'>> }
       warehouses: { Row: Warehouse; Insert: Omit<Warehouse, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Warehouse, 'id'>> }
       products: { Row: Product; Insert: Omit<Product, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Product, 'id'>> }
-      customers: { Row: Customer; Insert: Omit<Customer, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Customer, 'id'>> }
+      customers: { Row: Customer; Insert: Omit<Customer, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Customer, 'id' | 'created_at' | 'updated_at'>> }
       customer_prices: { Row: CustomerPrice; Insert: CustomerPrice; Update: Partial<CustomerPrice> }
       stocks: { Row: Stock; Insert: Omit<Stock, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Stock, 'id'>> }
       stock_transactions: { Row: StockTransaction; Insert: Omit<StockTransaction, 'id' | 'created_at'>; Update: Partial<Omit<StockTransaction, 'id'>> }

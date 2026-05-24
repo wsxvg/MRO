@@ -3,6 +3,7 @@
     <BasePageHeader title="商品管理">
       <div class="flex gap-2">
         <router-link to="/products/import" class="btn-secondary text-sm">导入</router-link>
+        <button class="btn-secondary text-sm" @click="exportProducts">导出</button>
         <button class="btn-primary text-sm" @click="showStockIn = true">入库</button>
         <button class="btn-primary text-sm" @click="showNewModal = true">新增商品</button>
       </div>
@@ -36,10 +37,12 @@
             <template v-else-if="column.key === 'stock_quantity'">
               {{ row.stock_quantity ?? 0 }}
             </template>
+            <template v-else-if="column.key === 'stock_quantity'">
+              {{ row.stock_quantity ?? 0 }}
+            </template>
             <template v-else-if="column.key === 'actions'">
-              <router-link :to="`/products/${row.id}/stock`" class="text-primary-600 hover:text-primary-700 text-sm mr-3">库存</router-link>
               <router-link :to="`/products/${row.id}`" class="text-primary-600 hover:text-primary-700 text-sm mr-3">编辑</router-link>
-              <button class="text-red-600 hover:text-red-700 text-sm" @click="confirmDelete(row)">删除</button>
+              <button class="text-red-600 hover:text-red-700 text-sm" @click="confirmDelete(row)">停用</button>
             </template>
             <template v-else>
               {{ row[column.key] ?? '-' }}
@@ -66,7 +69,7 @@
             <label class="label">商品 <span class="text-red-500">*</span></label>
             <select v-model="stockInForm.product_id" class="input" required>
               <option value="">选择商品...</option>
-              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} ({{ p.sku || '无SKU' }})</option>
+              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
           </div>
           <div>
@@ -101,8 +104,8 @@
     <ConfirmDialog
       v-model="showDeleteDialog"
       type="danger"
-      title="确认删除"
-      :message="`确定要删除商品「${deleteTarget?.name}」吗？此操作不可撤销。`"
+      title="确认停用"
+      :message="`确定要停用商品「${deleteTarget?.name}」吗？停用后将不再显示在列表中，但库存和单据记录会保留。`"
       @confirm="handleDelete"
       @cancel="showDeleteDialog = false"
     />
@@ -113,6 +116,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { productsApi, categoriesApi, createStockIn, fetchWarehouses } from '@/api'
 import type { Product, Category, Warehouse } from '@/types'
+import * as XLSX from 'xlsx'
+import { useRouter } from 'vue-router'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import BasePageHeader from '@/components/BasePageHeader.vue'
 import BaseCard from '@/components/BaseCard.vue'
@@ -250,14 +255,26 @@ function confirmDelete(product: Product) {
 
 async function handleDelete() {
   if (!deleteTarget.value) return
-  const result = await productsApi.delete(deleteTarget.value.id!)
+  const result = await productsApi.update(deleteTarget.value.id!, { is_active: false })
   if (!result.error) {
     showDeleteDialog.value = false
     deleteTarget.value = null
     fetchData()
   } else {
-    error.value = result.error || '删除失败'
+    error.value = result.error || '停用失败'
   }
+}
+
+async function exportProducts() {
+  const result = await productsApi.exportAll()
+  if (result.error || !result.data) {
+    error.value = result.error || '导出失败'
+    return
+  }
+  const ws = XLSX.utils.json_to_sheet(result.data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '商品')
+  XLSX.writeFile(wb, `商品数据_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
 onMounted(() => {

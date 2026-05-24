@@ -58,19 +58,26 @@ export async function fetchProducts(params?: {
   page?: number
   limit?: number
 }): Promise<ListResponse<Product>> {
-  // Use a subquery to sum stock quantities per product
+  // Step 1: Fetch products with category left join only
   let query = supabase
     .from('products')
-    .select('*, categories!left(name), stock_total:stocks!left(product_id)(quantity)', { count: 'exact' })
+    .select('*, categories!left(name)', { count: 'exact' })
 
   if (params?.search) {
-    query = query.or(`name.ilike.%${params.search}%,sku.ilike.%${params.search}%,barcode.ilike.%${params.search}%`)
+    query = query.ilike('name', `%${params.search}%`)
   }
   if (params?.category_id) {
     query = query.eq('category_id', params.category_id)
   }
+  // 默认只显示启用商品；显式传 null 表示查全部
   if (params?.is_active !== undefined) {
-    query = query.eq('is_active', params.is_active)
+    if (params.is_active === null) {
+      // 不添加筛选，查全部
+    } else {
+      query = query.eq('is_active', params.is_active)
+    }
+  } else {
+    query = query.eq('is_active', true)
   }
 
   const page = params?.page ?? 1
@@ -82,14 +89,24 @@ export async function fetchProducts(params?: {
     .order('name', { ascending: true })
     .range(from, to)
 
+  // Step 2: Fetch stock totals separately (avoid PostgREST join syntax ambiguity)
+  const productIds = (data ?? []).map((p: any) => p.id)
+  const stockMap: Record<number, number> = {}
+  if (productIds.length > 0) {
+    const { data: stocks } = await supabase
+      .from('stocks')
+      .select('product_id, quantity')
+      .in('product_id', productIds)
+    for (const s of (stocks ?? []) as any[]) {
+      stockMap[s.product_id] = (stockMap[s.product_id] || 0) + (s.quantity || 0)
+    }
+  }
+
   const mapped = (data ?? []).map((p: any) => ({
     ...p,
     category_name: p.categories?.name ?? null,
     categories: undefined,
-    stock_quantity: Array.isArray(p.stock_total)
-      ? p.stock_total.reduce((sum: number, s: any) => sum + (s.quantity ?? 0), 0)
-      : 0,
-    stock_total: undefined
+    stock_quantity: stockMap[p.id] ?? 0,
   }))
 
   return { data: mapped, count: count ?? 0, error: error?.message ?? null }
@@ -123,5 +140,12 @@ export async function updateProduct(id: number, input: Partial<Omit<Product, 'id
 
 export async function deleteProduct(id: number): Promise<ApiResult<null>> {
   const { error } = await supabase.from('products').delete().eq('id', id)
-  return { data: null, error: error?.message ?? null }
+  if (error) {
+    // PostgreSQL 外键冲突 (23503) — 商品被库存或单据引用
+    if ((error as any)?.code === '23503') {
+      return { data: null, error: '该商品尚有库存或关联单据，无法删除。请先清空该商品的库存记录。' }
+    }
+    return { data: null, error: error?.message ?? null }
+  }
+  return { data: null, error: null }
 }

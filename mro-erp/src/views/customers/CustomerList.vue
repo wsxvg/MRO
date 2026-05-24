@@ -9,6 +9,19 @@
 
     <FilterBar v-model="search" show-search search-placeholder="搜索名称/联系人/电话..." @update:model-value="onSearch" />
 
+    <!-- Type filter tabs -->
+    <div class="flex gap-1.5 mb-4">
+      <button :class="typeFilter === '' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors" @click="typeFilter = ''; fetchData()">
+        全部
+      </button>
+      <button :class="typeFilter === 'retail' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors" @click="typeFilter = 'retail'; fetchData()">
+        零售客户
+      </button>
+      <button :class="typeFilter === 'wholesale' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors" @click="typeFilter = 'wholesale'; fetchData()">
+        批发客户
+      </button>
+    </div>
+
     <div v-if="loading" class="text-center py-12 text-gray-500">加载中...</div>
     <div v-else-if="error" class="bg-white rounded-xl border border-gray-100 text-center py-12">
       <p class="text-red-500 mb-4">{{ error }}</p>
@@ -73,6 +86,7 @@ import CustomerForm from '@/views/customers/CustomerForm.vue'
 
 const columns = [
   { key: 'name', label: '名称' },
+  { key: 'type', label: '类型' },
   { key: 'contact_person', label: '联系人' },
   { key: 'phone', label: '电话' },
   { key: 'address', label: '地址' },
@@ -82,6 +96,7 @@ const columns = [
 
 const list = ref<Customer[]>([])
 const search = ref('')
+const typeFilter = ref('')
 const loading = ref(true)
 const error = ref('')
 const showDelete = ref(false)
@@ -99,7 +114,10 @@ function onSearch() { clearTimeout(timer); timer = setTimeout(() => fetchData(),
 async function fetchData() {
   loading.value = true; error.value = ''
   try {
-    const res = await fetchCustomers({ search: search.value })
+    const params: { search?: string; type?: string } = {}
+    if (search.value) params.search = search.value
+    if (typeFilter.value) params.type = typeFilter.value
+    const res = await fetchCustomers(params)
     if (res.data) list.value = res.data
     else error.value = res.error || '加载失败'
   } catch (e: unknown) {

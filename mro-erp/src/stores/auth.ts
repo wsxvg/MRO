@@ -1,55 +1,61 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { supabase } from '@/lib/supabase'
 
-const STORAGE_KEY = 'mro_auth'
 const DEFAULT_USERNAME = 'huiyou'
-const DEFAULT_PASSWORD = '123456'
+const DEFAULT_EMAIL = 'huiyou@mro-dev.xyz'
 const SECURITY_QUESTION = '王道硕的手机号是什么'
 const SECURITY_ANSWER = '17826038535'
-
-interface AuthData {
-  username: string
-  password: string
-}
-
-function loadAuth(): AuthData | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch { /* ignore */ }
-  return null
-}
-
-function saveAuth(data: AuthData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-}
 
 export const useAuthStore = defineStore('auth', () => {
   const loggedIn = ref(false)
   const loading = ref(false)
   const initialized = ref(false)
+  let authListener: { data: { subscription: { unsubscribe: () => void } } } | null = null
 
   const isLoggedIn = computed(() => loggedIn.value)
 
-  function initialize() {
-    const data = loadAuth()
-    if (data && data.username === DEFAULT_USERNAME) {
-      loggedIn.value = true
-    }
-    initialized.value = true
+  let initPromise: Promise<void> | null = null
+
+  async function initialize() {
+    if (initPromise) return initPromise
+    initPromise = (async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      loggedIn.value = !!session
+      initialized.value = true
+    })()
+
+    // Listen for auth state changes
+    authListener = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        loggedIn.value = true
+      } else if (event === 'SIGNED_OUT') {
+        loggedIn.value = false
+      }
+    })
+
+    return initPromise
   }
 
   async function login(username: string, password: string) {
     loading.value = true
     try {
-      const stored = loadAuth()
-      const validPassword = stored ? stored.password : DEFAULT_PASSWORD
-
-      if (username !== DEFAULT_USERNAME || password !== validPassword) {
+      if (username !== DEFAULT_USERNAME) {
         return { success: false as const, error: '用户名或密码错误' }
       }
 
-      saveAuth({ username, password: validPassword })
+      const { error } = await supabase.auth.signInWithPassword({
+        email: DEFAULT_EMAIL,
+        password,
+      })
+
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          return { success: false as const, error: '用户名或密码错误' }
+        }
+        return { success: false as const, error: `登录失败: ${error.message}` }
+      }
+
       loggedIn.value = true
       return { success: true as const }
     } finally {
@@ -68,21 +74,36 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false as const, error: '新密码至少3位字符' }
       }
 
-      saveAuth({ username: DEFAULT_USERNAME, password: newPassword })
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+
+      if (error) {
+        return { success: false as const, error: `密码修改失败: ${error.message}` }
+      }
+
       return { success: true as const, message: '密码修改成功' }
     } finally {
       loading.value = false
     }
   }
 
-  function logout() {
+  async function logout() {
     loggedIn.value = false
-    localStorage.removeItem(STORAGE_KEY)
+    await supabase.auth.signOut()
+    if (authListener) {
+      authListener.data.subscription.unsubscribe()
+    }
+  }
+
+  // Cleanup on store dispose
+  function $dispose() {
+    if (authListener) {
+      authListener.data.subscription.unsubscribe()
+    }
   }
 
   return {
     loggedIn, loading, initialized, isLoggedIn,
     initialize, login, changePassword, logout,
-    SECURITY_QUESTION
+    SECURITY_QUESTION, $dispose
   }
 })
