@@ -4,19 +4,22 @@
       <div
         v-if="modelValue"
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="title || '确认对话框'"
       >
         <!-- Overlay -->
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+        <div class="absolute inset-0 bg-gray-950/45 backdrop-blur-sm" @click="onCancel" />
 
         <!-- Panel -->
         <div
-          class="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 text-center"
+          class="relative w-full max-w-sm bg-white rounded-3xl shadow-[0_24px_80px_rgba(15,23,42,0.18)] border border-gray-200/70 p-6 text-center overflow-hidden"
           @click.stop
         >
 
           <!-- Icon -->
           <div
-            class="mx-auto mb-4 size-12 rounded-xl flex items-center justify-center"
+            class="mx-auto mb-4 size-12 rounded-2xl flex items-center justify-center"
             :class="iconBgClass"
           >
             <!-- Danger: trash icon -->
@@ -54,7 +57,7 @@
             </button>
             <button
               type="button"
-              class="flex-1 h-10 text-sm font-semibold text-white rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+              class="flex-1 h-10 text-sm font-semibold text-white rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
               :class="confirmBtnClass"
               :disabled="loading"
               @click="onConfirm"

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { Unit, ApiResult, ListResponse } from '@/types'
+import type { Database, Unit, ApiResult, ListResponse } from '@/types'
 
 export async function fetchUnits(): Promise<ListResponse<Unit>> {
   const { data, error } = await supabase
@@ -19,7 +19,7 @@ export async function createUnit(input: Pick<Unit, 'name' | 'sort_order'>): Prom
     return { data: null, error: `单位「${input.name}」已存在` }
   }
 
-  const { data, error } = await supabase.from('units').insert(input as never).select().single()
+  const { data, error } = await supabase.from('units').insert(input as any).select().single()
   return { data, error: error?.message ?? null }
 }
 
@@ -36,7 +36,7 @@ export async function updateUnit(id: number, input: Partial<Pick<Unit, 'name' | 
     }
   }
 
-  const { data, error } = await supabase.from('units').update(input as never).eq('id', id).select().single()
+  const { data, error } = await supabase.from('units').update(input as any).eq('id', id).select().single()
   return { data, error: error?.message ?? null }
 }
 

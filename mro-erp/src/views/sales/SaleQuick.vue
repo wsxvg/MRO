@@ -1,25 +1,25 @@
 <template>
-  <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col gap-4">
     <!-- Top Bar -->
-    <div class="flex items-center gap-3 mb-4 flex-shrink-0">
-      <router-link to="/sales" class="text-gray-500 hover:text-gray-700">
+    <div class="surface px-4 py-3 flex items-center gap-3 flex-shrink-0">
+      <router-link to="/sales" class="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
       </router-link>
-      <h1 class="text-xl font-bold text-gray-900">快速收银</h1>
+      <div>
+        <h1 class="text-xl font-semibold tracking-tight text-gray-900">快速收银</h1>
+        <p class="text-xs text-gray-400 mt-0.5">适合零售快速开单</p>
+      </div>
       <div class="ml-auto flex items-center gap-3">
-        <select v-model="form.customer_id" class="input text-sm py-1.5 w-44">
-          <option :value="null">客户: 默认零售</option>
-          <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
+        <SearchableSelect :options="customerOptions" v-model="form.customer_id" placeholder="客户: 默认零售" class="w-44" />
       </div>
     </div>
 
     <!-- Main Content: Left Cart + Right Products -->
     <div class="flex-1 flex gap-4 min-h-0">
       <!-- === LEFT: Shopping Cart === -->
-      <div class="w-[420px] flex-shrink-0 bg-white rounded-xl border border-gray-200 flex flex-col">
+      <div class="w-[420px] flex-shrink-0 surface-strong flex flex-col">
         <!-- Cart Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <div class="flex items-center gap-2">
@@ -27,7 +27,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
             </svg>
             <span class="text-sm font-semibold text-gray-900">当前订单</span>
-            <span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{{ items.length }} 件</span>
+            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ items.length }} 件</span>
           </div>
           <button v-if="items.length > 0" class="text-xs text-red-500 hover:text-red-700 font-medium" @click="clearCart">
             清空
@@ -75,7 +75,7 @@
           </div>
 
           <!-- Complete Sale -->
-          <button class="w-full btn bg-gray-900 text-white hover:bg-gray-800 border-0 py-3 text-base font-semibold" :disabled="saving || items.length === 0 || !defaultWarehouse" @click="handleQuickSale">
+          <button class="w-full btn-primary py-3 text-base font-semibold" :disabled="saving || items.length === 0 || !defaultWarehouse" @click="handleQuickSale">
             {{ saving ? '保存中...' : '✓ 完成销售' }}
           </button>
         </div>
@@ -85,23 +85,23 @@
       </div>
 
       <!-- === RIGHT: Product Browser === -->
-      <div class="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col min-w-0">
+      <div class="flex-1 surface-strong flex flex-col min-w-0">
         <!-- Search -->
         <div class="px-4 pt-4 pb-3">
           <div class="relative">
             <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <input v-model="searchQuery" placeholder="搜索商品名称 / SKU..." class="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" @input="debouncedSearch" />
+            <input v-model="searchQuery" placeholder="搜索商品名称 / SKU..." class="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" @input="debouncedSearch" />
           </div>
         </div>
 
         <!-- Category Tabs -->
         <div class="px-4 pb-3 flex gap-1.5 overflow-x-auto flex-shrink-0">
-          <button :class="selectedCategoryId === null ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors" @click="selectedCategoryId = null">
+          <button :class="selectedCategoryId === null ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors" @click="selectedCategoryId = null">
             全部
           </button>
-          <button v-for="cat in categories" :key="cat.id" :class="selectedCategoryId === cat.id ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors" @click="selectedCategoryId = cat.id">
+          <button v-for="cat in categories" :key="cat.id" :class="selectedCategoryId === cat.id ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors" @click="selectedCategoryId = cat.id">
             {{ cat.name }}
           </button>
         </div>
@@ -117,14 +117,14 @@
             </div>
           </div>
           <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            <div v-for="p in displayProducts" :key="p.id" class="group relative bg-white border border-gray-200 rounded-xl p-3 cursor-pointer hover:border-gray-900 hover:shadow-sm transition-all" @click="selectProduct(p)" @mouseenter="showStock(p.id)" @mouseleave="hoveredProductId = null">
+            <div v-for="p in displayProducts" :key="p.id" class="group relative bg-white border border-gray-200/80 rounded-2xl p-3 cursor-pointer hover:border-gray-900 hover:shadow-sm transition-all" @click="selectProduct(p)" @mouseenter="showStock(p.id)" @mouseleave="hoveredProductId = null">
               <div class="text-sm font-medium text-gray-900 truncate group-hover:text-gray-900">{{ p.name }}</div>
               <div class="text-xs text-gray-400 mt-0.5 truncate">{{ p.sku || '' }} {{ p.specification || '' }}</div>
               <div class="flex items-center justify-between mt-2">
-                <span class="text-sm font-bold text-gray-900">¥{{ (p.reference_price || 0).toFixed(1) }}</span>
-                <span class="text-[10px] text-gray-400">库存:{{ p.stock_quantity ?? '-' }}</span>
+                <span class="text-sm font-semibold text-gray-900">¥{{ (p.reference_price || 0).toFixed(1) }}</span>
+                <span class="text-[10px] text-gray-500">库存:{{ p.stock_quantity ?? '-' }}</span>
               </div>
-              <div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
               </div>
               <!-- Per-Warehouse Stock Tooltip -->
@@ -142,8 +142,8 @@
     </div>
 
     <!-- Note / Remark -->
-    <div class="flex-shrink-0 mt-3 flex items-center gap-3">
-      <input v-model="form.remark" placeholder="备注（可选）" class="input text-sm py-1.5 flex-1" />
+    <div class="flex-shrink-0 mt-1 flex items-center gap-3">
+      <input v-model="form.remark" placeholder="备注（可选）" class="input text-sm py-2 flex-1" />
     </div>
   </div>
 </template>
@@ -151,6 +151,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import SearchableSelect from '@/components/SearchableSelect.vue'
+import { useDebounceFn } from '@/composables/useDebounce'
 import { fetchCustomers } from '@/api'
 import { fetchDefaultWarehouse } from '@/api'
 import { fetchProducts, fetchCategories } from '@/api'
@@ -170,16 +172,19 @@ const selectedCategoryId = ref<number | null>(null)
 const hoveredProductId = ref<number | null>(null)
 const productStocks = reactive<Record<number, { warehouse_id: number; warehouse_name: string; quantity: number }[]>>({})
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-
 const form = reactive({
-  customer_id: null as number | null,
+  customer_id: null as string | number | null,
   remark: ''
 })
 
 const items = reactive<{ product_id: number; product_name: string; quantity: number; unit_price: number; cost_price: number; line_total: number }[]>([])
 
 const total = computed(() => items.reduce((s, i) => s + (i.line_total || 0), 0))
+
+const customerOptions = computed(() => [
+  { value: '', label: '默认零售' },
+  ...customers.value.map(c => ({ value: c.id, label: c.name }))
+])
 
 /** Products to show in the grid: either search results or category-filtered list */
 const displayProducts = computed(() => {
@@ -231,12 +236,7 @@ function calcLine(idx: number) {
   items[idx].line_total = (items[idx].quantity || 0) * (items[idx].unit_price || 0)
 }
 
-function debouncedSearch() {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    doSearch()
-  }, 300)
-}
+const debouncedSearch = useDebounceFn(() => doSearch(), 300)
 
 async function showStock(productId: number) {
   hoveredProductId.value = productId
@@ -261,6 +261,7 @@ async function doSearch() {
 }
 
 async function handleQuickSale() {
+  if (saving.value) return
   saving.value = true; error.value = ''; success.value = ''
   if (!defaultWarehouse.value) { error.value = '未配置默认仓库'; saving.value = false; return }
   try {

@@ -3,7 +3,7 @@ import type {
   SalesOrder, SalesOrderItem,
   SalesReturnOrder, SalesReturnItem,
   PaymentRecord,
-  ApiResult, ListResponse
+  ApiResult, ListResponse, Database
 } from '@/types'
 
 // ====== Sales Orders ======
@@ -66,7 +66,7 @@ export async function fetchSalesOrder(id: number): Promise<ApiResult<SalesOrder>
 export async function createSalesOrder(
   input: Omit<SalesOrder, 'id' | 'order_no' | 'created_at' | 'updated_at' | 'customer_name' | 'warehouse_name'>
 ): Promise<ApiResult<SalesOrder>> {
-  const { data, error } = await supabase.from('sales_orders').insert(input as never).select('id, order_no, customer_id, warehouse_id, status, total_amount, paid_amount, remark, created_at, updated_at').single()
+  const { data, error } = await supabase.from('sales_orders').insert(input as any).select('id, order_no, customer_id, warehouse_id, status, total_amount, paid_amount, remark, created_at, updated_at').single()
   return { data, error: error?.message ?? null }
 }
 
@@ -74,12 +74,12 @@ export async function updateSalesOrder(
   id: number,
   input: Partial<Omit<SalesOrder, 'id' | 'order_no' | 'created_at' | 'updated_at'>>
 ): Promise<ApiResult<SalesOrder>> {
-  const { data, error } = await supabase.from('sales_orders').update(input as never).eq('id', id).select('id, order_no, customer_id, warehouse_id, status, total_amount, paid_amount, remark, created_at, updated_at').single()
+  const { data, error } = await supabase.from('sales_orders').update(input as any).eq('id', id).select('id, order_no, customer_id, warehouse_id, status, total_amount, paid_amount, remark, created_at, updated_at').single()
   return { data, error: error?.message ?? null }
 }
 
 export async function completeSalesOrder(id: number): Promise<ApiResult<null>> {
-  const { error } = await supabase.rpc('complete_sales_order', { p_order_id: id } as never)
+  const { error } = await supabase.rpc('complete_sales_order', { p_order_id: id } as any)
   return { data: null, error: error?.message ?? null }
 }
 
@@ -116,7 +116,7 @@ export async function saveSalesOrderItems(
     cost_price: i.cost_price
   }))
 
-  const { error } = await supabase.from('sales_order_items').insert(records as never)
+  const { error } = await supabase.from('sales_order_items').insert(records as any[])
   return { data: null, error: error?.message ?? null }
 }
 
@@ -176,12 +176,12 @@ export async function fetchSalesReturn(id: number): Promise<ApiResult<SalesRetur
 export async function createSalesReturn(
   input: Omit<SalesReturnOrder, 'id' | 'order_no' | 'created_at' | 'updated_at' | 'customer_name' | 'warehouse_name'>
 ): Promise<ApiResult<SalesReturnOrder>> {
-  const { data, error } = await supabase.from('sales_return_orders').insert(input as never).select().single()
+  const { data, error } = await supabase.from('sales_return_orders').insert(input as any).select().single()
   return { data, error: error?.message ?? null }
 }
 
 export async function completeSalesReturn(id: number): Promise<ApiResult<null>> {
-  const { error } = await supabase.rpc('complete_sales_return', { p_return_id: id } as never)
+  const { error } = await supabase.rpc('complete_sales_return', { p_return_id: id } as any)
   return { data: null, error: error?.message ?? null }
 }
 
@@ -216,14 +216,14 @@ export async function saveSalesReturnItems(
     unit_price: i.unit_price
   }))
 
-  const { error } = await supabase.from('sales_return_items').insert(records as never)
+  const { error } = await supabase.from('sales_return_items').insert(records as any[])
   return { data: null, error: error?.message ?? null }
 }
 
 export async function createPayment(
   input: Omit<PaymentRecord, 'id' | 'created_at'>
 ): Promise<ApiResult<PaymentRecord>> {
-  const { data, error } = await supabase.from('payment_records').insert(input as never).select().single()
+  const { data, error } = await supabase.from('payment_records').insert(input as any).select().single()
   return { data, error: error?.message ?? null }
 }
 

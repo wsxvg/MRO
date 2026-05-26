@@ -5,13 +5,26 @@
     </BasePageHeader>
 
     <BaseCard>
+      <div @dragover.prevent @drop="onDrop" @dragend="onDragEnd">
       <BaseTable
         :columns="columns"
         :data="categories"
         empty-text="暂无分类"
       >
         <template #cell="{ column, row }">
-          <template v-if="column.key === 'actions'">
+          <template v-if="column.key === 'sortHandle'">
+            <button
+              draggable="true"
+              class="cursor-grab active:cursor-grabbing p-1 -ml-1 text-gray-400 hover:text-gray-600"
+              :class="{ 'opacity-30': draggedId === row.id }"
+              @dragstart="onDragStart(row.id, $event)"
+            >
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 4a2 2 0 100 4 2 2 0 000-4zM9 10a2 2 0 100 4 2 2 0 000-4zM9 16a2 2 0 100 4 2 2 0 000-4zM15 4a2 2 0 100 4 2 2 0 000-4zM15 10a2 2 0 100 4 2 2 0 000-4zM15 16a2 2 0 100 4 2 2 0 000-4z" />
+              </svg>
+            </button>
+          </template>
+          <template v-else-if="column.key === 'actions'">
              <button class="btn-icon text-gray-500 hover:text-primary-600" title="编辑" @click="edit(row)">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
@@ -24,6 +37,7 @@
           </template>
         </template>
       </BaseTable>
+      </div>
     </BaseCard>
 
     <!-- Form Modal -->
@@ -68,6 +82,7 @@ import BaseCard from '@/components/BaseCard.vue'
 import BaseTable from '@/components/BaseTable.vue'
 
 const columns = [
+  { key: 'sortHandle', label: '' },
   { key: 'name', label: '名称' },
   { key: 'actions', label: '操作', align: 'right' as const }
 ]
@@ -78,6 +93,8 @@ const showDelete = ref(false)
 const editTarget = ref<Category | null>(null)
 const deleteTarget = ref<Category | null>(null)
 const saving = ref(false)
+const savingSortOrder = ref(false)
+const draggedId = ref<number | null>(null)
 const formError = ref('')
 
 const form = reactive({ name: '' })
@@ -121,6 +138,61 @@ async function handleDelete() {
   await categoriesApi.delete(deleteTarget.value.id!)
   showDelete.value = false
   fetchData()
+}
+
+// --- Drag-and-Drop Sorting ---
+function onDragStart(id: number, event: DragEvent) {
+  if (savingSortOrder.value) { event.preventDefault(); return }
+  draggedId.value = id
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(id))
+  }
+}
+
+function onDrop(event: DragEvent) {
+  const tr = (event.target as HTMLElement).closest('tr')
+  if (!tr || draggedId.value === null) return
+
+  const tbody = tr.closest('tbody')
+  if (!tbody) return
+
+  const rows = Array.from(tbody.querySelectorAll('tr'))
+  const dropIndex = rows.indexOf(tr)
+  const dragIndex = categories.value.findIndex(c => c.id === draggedId.value)
+
+  if (dragIndex === -1 || dropIndex === -1 || dragIndex === dropIndex) {
+    draggedId.value = null
+    return
+  }
+
+  // Reorder the array locally (visual update is instant)
+  const item = categories.value.splice(dragIndex, 1)[0]
+  categories.value.splice(dropIndex, 0, item)
+
+  // Persist new sort_order to database
+  saveSortOrder()
+  draggedId.value = null
+}
+
+function onDragEnd() {
+  draggedId.value = null
+}
+
+async function saveSortOrder() {
+  savingSortOrder.value = true
+  try {
+    await Promise.all(
+      categories.value.map((cat, index) =>
+        categoriesApi.update(cat.id, { sort_order: index })
+      )
+    )
+  } catch (e) {
+    console.error('保存排序失败', e)
+    fetchData() // Revert on failure
+  } finally {
+    savingSortOrder.value = false
+  }
 }
 
 onMounted(fetchData)

@@ -1,20 +1,20 @@
 <template>
   <div>
     <!-- Page header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
       <div class="flex items-center gap-4">
         <div>
-          <h1 class="text-xl font-bold text-gray-900">仪表盘</h1>
+          <h1 class="text-2xl font-semibold tracking-tight text-gray-900">仪表盘</h1>
           <p class="text-sm text-gray-400 mt-1">{{ currentDate }}</p>
         </div>
-        <router-link to="/sales/quick" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
+        <router-link to="/sales/quick" class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors shadow-sm">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
           </svg>
           快速开单
         </router-link>
       </div>
-      <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
+      <div class="flex items-center gap-2 surface px-3 py-1.5">
         <i class="ri-calendar-line text-gray-400 text-sm"></i>
         <select v-model="selectedPeriod" class="text-sm text-gray-600 bg-transparent border-none outline-none focus:ring-0 py-0 cursor-pointer">
           <option value="thisMonth">本月</option>
@@ -25,17 +25,53 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex items-center justify-center py-32">
-      <div class="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+    <div v-if="loading" class="space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div v-for="n in 3" :key="n" class="surface-strong p-4 animate-pulse">
+          <div class="h-3 w-24 bg-gray-100 rounded mb-4"></div>
+          <div class="h-8 w-28 bg-gray-200 rounded mb-3"></div>
+          <div class="h-2 w-16 bg-gray-100 rounded"></div>
+          <div class="mt-4 h-9 w-full bg-gray-100 rounded-xl"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="surface-strong p-5 lg:col-span-2 animate-pulse">
+          <div class="h-4 w-28 bg-gray-100 rounded mb-4"></div>
+          <div class="h-72 bg-gray-50 rounded-2xl"></div>
+        </div>
+        <div class="surface-strong p-5 animate-pulse">
+          <div class="h-4 w-20 bg-gray-100 rounded mb-4"></div>
+          <div class="space-y-3">
+            <div class="h-16 bg-gray-50 rounded-xl"></div>
+            <div class="h-16 bg-gray-50 rounded-xl"></div>
+            <div class="h-16 bg-gray-50 rounded-xl"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="surface-strong p-5 animate-pulse">
+          <div class="h-4 w-28 bg-gray-100 rounded mb-4"></div>
+          <div class="h-52 bg-gray-50 rounded-2xl"></div>
+        </div>
+        <div class="surface-strong p-5 animate-pulse">
+          <div class="h-4 w-20 bg-gray-100 rounded mb-4"></div>
+          <div class="space-y-3">
+            <div class="h-16 bg-gray-50 rounded-xl"></div>
+            <div class="h-16 bg-gray-50 rounded-xl"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <template v-else>
       <!-- KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <!-- 本月销售额 -->
-        <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <div class="surface-strong p-4">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">本月销售额</span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">{{ selectedPeriodLabel }}销售额</span>
             <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
               <i class="ri-handbag-line text-emerald-500 text-xs"></i>
             </div>
@@ -51,7 +87,7 @@
           <div ref="spark2Ref" class="mt-1 h-9 w-full" />
         </div>
         <!-- 库存周转率 -->
-        <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <div class="surface-strong p-4">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">库存周转率</span>
             <div class="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
@@ -61,10 +97,10 @@
           <div class="text-2xl font-bold text-gray-900 mb-1">
             {{ turnoverRate }}<span class="text-sm font-normal text-gray-400 ml-0.5">x</span>
           </div>
-          <div class="text-xs text-gray-400">本月销售成本 / 平均库存</div>
+          <div class="text-xs text-gray-400">{{ selectedPeriodLabel }}销售成本 / 平均库存</div>
         </div>
         <!-- 低库存预警 -->
-        <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <div class="surface-strong p-4">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">低库存预警</span>
             <div class="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center">
@@ -81,7 +117,7 @@
       <!-- Row 2: Trend + Orders -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <!-- Trend Chart -->
-        <div class="bg-white rounded-xl border border-gray-100 p-5 lg:col-span-2">
+        <div class="surface-strong p-5 lg:col-span-2">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-semibold text-gray-900">销售趋势</h3>
             <div class="flex items-center gap-3">
@@ -96,7 +132,7 @@
           </div>
         </div>
         <!-- Recent Orders -->
-        <div class="bg-white rounded-xl border border-gray-100 p-5">
+        <div class="surface-strong p-5">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-semibold text-gray-900">最近订单</h3>
             <router-link to="/sales" class="text-xs text-gray-600 hover:text-gray-900 font-medium">查看全部</router-link>
@@ -124,7 +160,7 @@
       <!-- Row 3: Pie + Pending -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- Inventory Pie -->
-        <div class="bg-white rounded-xl border border-gray-100 p-5">
+        <div class="surface-strong p-5">
           <h3 class="text-sm font-semibold text-gray-900 mb-4">库存分类分布</h3>
           <div ref="pieRef" class="h-52 w-full" />
           <div v-if="inventoryByCategory.length === 0" class="h-52 flex items-center justify-center text-sm text-gray-400 -mt-52">
@@ -132,7 +168,7 @@
           </div>
         </div>
         <!-- Pending / Alerts -->
-        <div class="bg-white rounded-xl border border-gray-100 p-5">
+        <div class="surface-strong p-5">
           <h3 class="text-sm font-semibold text-gray-900 mb-4">待处理</h3>
           <div class="space-y-3">
             <div class="flex items-center justify-between p-3.5 bg-gray-100 rounded-lg">
@@ -161,7 +197,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useRealtimeTables } from '@/composables/useRealtime'
+import { useDebounceFn } from '@/composables/useDebounce'
 // ECharts 按需引入（减少约 800KB）
 import * as echarts from 'echarts/core'
 import { LineChart, PieChart } from 'echarts/charts'
@@ -172,14 +210,14 @@ import { CanvasRenderer } from 'echarts/renderers'
 echarts.use([LineChart, PieChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 import {
   fetchDashboardKPIs,
-  fetchMonthlyTrend,
   fetchInventoryByCategory,
   fetchInventoryTurnoverRate,
-  fetchRecentOrders
+  fetchRecentOrders,
+  fetchSalesSummary
 } from '@/api/reports'
 
 const loading = ref(true)
-const selectedPeriod = ref('thisMonth')
+const selectedPeriod = ref<'thisMonth' | 'lastMonth' | 'thisYear'>('thisMonth')
 
 // KPI data
 const monthlySales = ref(0)
@@ -209,6 +247,15 @@ const currentDate = computed(() => {
   return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 星期${weekDays[now.getDay()]}`
 })
 
+const selectedPeriodLabel = computed(() => {
+  const labels: Record<typeof selectedPeriod.value, string> = {
+    thisMonth: '本月',
+    lastMonth: '上月',
+    thisYear: '本年'
+  }
+  return labels[selectedPeriod.value]
+})
+
 const statusLabels: Record<string, string> = {
   draft: '草稿',
   confirmed: '已确认',
@@ -228,6 +275,59 @@ function statusBadge(s: string): string {
     cancelled: 'bg-red-50 text-red-500'
   }
   return colors[s] || 'bg-gray-100 text-gray-500'
+}
+
+function getPeriodRange() {
+  const now = new Date()
+
+  if (selectedPeriod.value === 'lastMonth') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+    return {
+      dateFrom: start.toISOString(),
+      dateTo: end.toISOString()
+    }
+  }
+
+  if (selectedPeriod.value === 'thisYear') {
+    const start = new Date(now.getFullYear(), 0, 1)
+    return {
+      dateFrom: start.toISOString(),
+      dateTo: now.toISOString()
+    }
+  }
+
+  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+  return {
+    dateFrom: start.toISOString(),
+    dateTo: now.toISOString()
+  }
+}
+
+async function fetchTrendData(dateFrom: string, dateTo: string) {
+  const res = await fetchSalesSummary({
+    date_from: dateFrom,
+    date_to: dateTo
+  })
+
+  if (!res.data) return []
+
+  if (selectedPeriod.value === 'thisYear') {
+    const monthMap = new Map<string, number>()
+    for (const row of res.data) {
+      const month = row.date.slice(0, 7)
+      monthMap.set(month, (monthMap.get(month) ?? 0) + Number(row.total_amount))
+    }
+    return Array.from(monthMap.entries()).map(([month, sales_amount]) => ({
+      label: month.slice(5) + '月',
+      sales_amount
+    }))
+  }
+
+  return res.data.map(row => ({
+    label: row.date.slice(5),
+    sales_amount: row.total_amount
+  }))
 }
 
 /** Calculate month-over-month change, falling back if current month is zero. */
@@ -269,7 +369,7 @@ function renderSparkline(chart: echarts.ECharts, data: number[], color: string) 
 }
 
 function renderTrendChart(chart: echarts.ECharts, data: any[]) {
-  const months = data.map((d: any) => d.month.slice(5))
+  const labels = data.map((d: any) => d.label)
   chart.setOption({
     tooltip: {
       trigger: 'axis',
@@ -279,7 +379,7 @@ function renderTrendChart(chart: echarts.ECharts, data: any[]) {
     grid: { left: 50, right: 16, top: 16, bottom: 28 },
     xAxis: {
       type: 'category',
-      data: months,
+      data: labels,
       axisLine: { lineStyle: { color: '#e5e7eb' } },
       axisTick: { show: false },
       axisLabel: { color: '#9ca3af', fontSize: 11 }
@@ -366,15 +466,16 @@ let resizeHandler: (() => void) | null = null
 async function loadData() {
   loading.value = true
   try {
+    const { dateFrom, dateTo } = getPeriodRange()
     const [
       kpiRes, trendRes,
       inventoryRes, turnoverRes, ordersRes
     ] = await Promise.all([
-      fetchDashboardKPIs(),
-      fetchMonthlyTrend(),
+      fetchDashboardKPIs({ date_from: dateFrom, date_to: dateTo }),
+      fetchTrendData(dateFrom, dateTo),
       fetchInventoryByCategory(),
-      fetchInventoryTurnoverRate(),
-      fetchRecentOrders(8)
+      fetchInventoryTurnoverRate({ date_from: dateFrom, date_to: dateTo }),
+      fetchRecentOrders(8, { date_from: dateFrom, date_to: dateTo })
     ])
 
     if (kpiRes.data) {
@@ -387,9 +488,9 @@ async function loadData() {
       turnoverRate.value = turnoverRes.data.rate
     }
 
-    if (trendRes.data && trendRes.data.length > 0) {
-      trendData.value = trendRes.data
-      salesChange.value = calcChange(trendRes.data.map((d: any) => d.sales_amount))
+    if (trendRes.length > 0) {
+      trendData.value = trendRes
+      salesChange.value = calcChange(trendRes.map((d: any) => d.sales_amount))
     }
 
     if (inventoryRes.data) {
@@ -407,8 +508,22 @@ async function loadData() {
   }
 }
 
+const debouncedReload = useDebounceFn(() => {
+  loadData()
+}, 1000)
+
+watch(selectedPeriod, () => {
+  loadData()
+})
+
 onMounted(async () => {
   await loadData()
+
+  // Supabase Realtime: 销售单或库存变化时自动刷新仪表盘
+  useRealtimeTables(['sales_orders', 'stocks'], () => {
+    debouncedReload()
+  })
+
   resizeHandler = () => {
     trendChart?.resize()
     pieChart?.resize()

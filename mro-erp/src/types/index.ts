@@ -223,22 +223,28 @@ export interface ApiResult<T> {
 export interface Database {
   public: {
     Tables: {
-      categories: { Row: Category; Insert: Omit<Category, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Category, 'id'>> }
-      warehouses: { Row: Warehouse; Insert: Omit<Warehouse, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Warehouse, 'id'>> }
-      products: { Row: Product; Insert: Omit<Product, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Product, 'id'>> }
-      customers: { Row: Customer; Insert: Omit<Customer, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Customer, 'id' | 'created_at' | 'updated_at'>> }
-      customer_prices: { Row: CustomerPrice; Insert: CustomerPrice; Update: Partial<CustomerPrice> }
-      stocks: { Row: Stock; Insert: Omit<Stock, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Stock, 'id'>> }
-      stock_transactions: { Row: StockTransaction; Insert: Omit<StockTransaction, 'id' | 'created_at'>; Update: Partial<Omit<StockTransaction, 'id'>> }
-      sales_orders: { Row: SalesOrder; Insert: Omit<SalesOrder, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<SalesOrder, 'id'>> }
-      sales_order_items: { Row: SalesOrderItem; Insert: Omit<SalesOrderItem, 'id' | 'line_total'>; Update: Partial<Omit<SalesOrderItem, 'id'>> }
-      payment_records: { Row: PaymentRecord; Insert: Omit<PaymentRecord, 'id' | 'created_at'>; Update: Partial<Omit<PaymentRecord, 'id'>> }
-      sales_return_orders: { Row: SalesReturnOrder; Insert: Omit<SalesReturnOrder, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<SalesReturnOrder, 'id'>> }
-      sales_return_items: { Row: SalesReturnItem; Insert: Omit<SalesReturnItem, 'id' | 'line_total'>; Update: Partial<Omit<SalesReturnItem, 'id'>> }
+      units: { Row: Unit; Insert: Omit<Unit, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Unit, 'id'>>; Relationships: [] }
+      categories: { Row: Category; Insert: Omit<Category, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Category, 'id'>>; Relationships: [] }
+      warehouses: { Row: Warehouse; Insert: Omit<Warehouse, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Warehouse, 'id'>>; Relationships: [] }
+      products: { Row: Product; Insert: Omit<Product, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Product, 'id'>>; Relationships: [] }
+      customers: { Row: Customer; Insert: Omit<Customer, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Customer, 'id' | 'created_at' | 'updated_at'>>; Relationships: [] }
+      customer_prices: { Row: CustomerPrice; Insert: CustomerPrice; Update: Partial<CustomerPrice>; Relationships: [] }
+      stocks: { Row: Stock; Insert: Omit<Stock, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Stock, 'id'>>; Relationships: [] }
+      stock_transactions: { Row: StockTransaction; Insert: Omit<StockTransaction, 'id' | 'created_at'>; Update: Partial<Omit<StockTransaction, 'id'>>; Relationships: [] }
+      stock_transfers: { Row: StockTransfer; Insert: Omit<StockTransfer, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<StockTransfer, 'id'>>; Relationships: [] }
+      stock_transfer_items: { Row: StockTransferItem; Insert: Omit<StockTransferItem, 'id'>; Update: Partial<Omit<StockTransferItem, 'id'>>; Relationships: [] }
+      sales_orders: { Row: SalesOrder; Insert: Omit<SalesOrder, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<SalesOrder, 'id'>>; Relationships: [] }
+      sales_order_items: { Row: SalesOrderItem; Insert: Omit<SalesOrderItem, 'id' | 'line_total'>; Update: Partial<Omit<SalesOrderItem, 'id'>>; Relationships: [] }
+      payment_records: { Row: PaymentRecord; Insert: Omit<PaymentRecord, 'id' | 'created_at'>; Update: Partial<Omit<PaymentRecord, 'id'>>; Relationships: [] }
+      sales_return_orders: { Row: SalesReturnOrder; Insert: Omit<SalesReturnOrder, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<SalesReturnOrder, 'id'>>; Relationships: [] }
+      sales_return_items: { Row: SalesReturnItem; Insert: Omit<SalesReturnItem, 'id' | 'line_total'>; Update: Partial<Omit<SalesReturnItem, 'id'>>; Relationships: [] }
     }
+    Views: {}
     Functions: {
       complete_sales_order: { Args: { p_order_id: number }; Returns: void }
       complete_sales_return: { Args: { p_return_id: number }; Returns: void }
+      get_monthly_sales_trend: { Args: { p_start_date: string }; Returns: { month: string; sales_amount: number; sales_count: number }[] }
+      get_stock_transactions_by_date: { Args: { p_date_from?: string; p_date_to?: string; p_warehouse_id?: number; p_product_id?: number; p_type?: string }; Returns: { date: string; type: string; total_quantity: number; transaction_count: number }[] }
     }
   }
 }

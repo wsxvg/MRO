@@ -81,23 +81,7 @@
         </template>
       </BaseTable>
 
-      <!-- Pagination -->
-      <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-        <p class="text-sm text-gray-400">共 {{ total }} 条</p>
-        <div class="flex items-center gap-2">
-          <button
-            :disabled="page <= 1"
-            class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            @click="page--; fetchData()"
-          >上一页</button>
-          <span class="text-sm text-gray-500">{{ page }} / {{ totalPages }}</span>
-          <button
-            :disabled="page >= totalPages"
-            class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            @click="page++; fetchData()"
-          >下一页</button>
-        </div>
-      </div>
+      <BasePagination :current-page="page" :total="total" :page-size="pageSize" @change="page = $event; fetchData()" />
     </div>
   </div>
 </template>
@@ -108,6 +92,7 @@ import { fetchStockTransactions, fetchWarehouses } from '@/api'
 import type { StockTransaction, Warehouse } from '@/types'
 import BasePageHeader from '@/components/BasePageHeader.vue'
 import BaseTable from '@/components/BaseTable.vue'
+import BasePagination from '@/components/BasePagination.vue'
 
 const list = ref<StockTransaction[]>([])
 const warehouses = ref<Warehouse[]>([])
@@ -118,8 +103,6 @@ const pageSize = 15
 const filterWarehouseId = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
-
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
 
 const typeLabels: Record<string, string> = {
   stock_in: '入库',

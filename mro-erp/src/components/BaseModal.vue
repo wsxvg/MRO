@@ -3,21 +3,24 @@
     <Transition name="modal">
       <div
         v-if="modelValue"
-        class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh] overflow-y-auto"
+        class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="title || '弹窗'"
       >
-        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+        <div class="fixed inset-0 bg-gray-950/45 backdrop-blur-sm" @click="close" />
 
         <div
-          class="relative w-full rounded-2xl shadow-2xl border border-gray-200 bg-white"
+          class="relative w-full rounded-3xl shadow-[0_24px_80px_rgba(15,23,42,0.18)] border border-gray-200/70 bg-white overflow-hidden"
           :class="sizeClass"
           @click.stop
         >
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-900">{{ title }}</h3>
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white/95 backdrop-blur">
+            <h3 class="text-lg font-semibold tracking-tight text-gray-900">{{ title }}</h3>
             <button
               type="button"
-              class="size-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              class="size-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               @click="close"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -27,12 +30,12 @@
           </div>
 
           <!-- Body -->
-          <div class="px-6 py-5">
+          <div class="px-6 py-5 bg-white">
             <slot />
           </div>
 
           <!-- Footer -->
-          <div v-if="$slots.footer" class="px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+          <div v-if="$slots.footer" class="px-6 py-4 border-t border-gray-100 bg-gray-50/70">
             <slot name="footer" />
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { StockTransaction, ApiResult, ListResponse } from '@/types'
+import type { StockTransaction, ApiResult, ListResponse, Database } from '@/types'
 
 export async function fetchStockTransactions(params?: {
   warehouse_id?: number
@@ -69,7 +69,7 @@ export async function createStockIn(input: {
     ref_type: null,
     ref_id: null,
     remark: input.remark ?? null
-  } as never)
+  } as any)
   if (txErr) return { data: null, error: txErr.message }
 
   // 2. Upsert stock quantity
@@ -84,15 +84,89 @@ export async function createStockIn(input: {
     const existingData = existing as { id: number; quantity: number }
     const { error: upErr } = await supabase
       .from('stocks')
-      .update({ quantity: existingData.quantity + input.quantity } as never)
+      .update({ quantity: existingData.quantity + input.quantity } as any)
       .eq('id', existingData.id)
     return { data: null, error: upErr?.message ?? null }
   }
 
   const { error: insErr } = await supabase
     .from('stocks')
-    .insert({ product_id: input.product_id, warehouse_id: input.warehouse_id, quantity: input.quantity } as never)
+    .insert({ product_id: input.product_id, warehouse_id: input.warehouse_id, quantity: input.quantity } as any)
   return { data: null, error: insErr?.message ?? null }
+}
+
+// ====== Batch Stock-In (for multi-product receiving) ======
+
+export async function batchCreateStockIn(inputs: Array<{
+  product_id: number
+  warehouse_id: number
+  quantity: number
+  remark?: string | null
+}>): Promise<ApiResult<null>> {
+  if (inputs.length === 0) return { data: null, error: null }
+
+  // 1. Batch insert stock transactions
+  const txInserts = inputs.map(i => ({
+    product_id: i.product_id,
+    warehouse_id: i.warehouse_id,
+    type: 'stock_in' as const,
+    quantity: i.quantity,
+    unit_cost: null,
+    ref_type: null,
+    ref_id: null,
+    remark: i.remark ?? null
+  }))
+
+  const { error: txErr } = await supabase.from('stock_transactions').insert(txInserts as any[])
+  if (txErr) return { data: null, error: txErr.message }
+
+  // 2. Aggregate quantities per product
+  const warehouseId = inputs[0].warehouse_id
+  const quantityMap = new Map<number, number>()
+  for (const inp of inputs) {
+    quantityMap.set(inp.product_id, (quantityMap.get(inp.product_id) || 0) + inp.quantity)
+  }
+
+  // 3. Fetch existing stocks for these products in this warehouse
+  const { data: existingStocks } = await supabase
+    .from('stocks')
+    .select('id, product_id, quantity')
+    .eq('warehouse_id', warehouseId)
+    .in('product_id', [...quantityMap.keys()])
+
+  const existingMap = new Map<number, { id: number; quantity: number }>()
+  if (existingStocks) {
+    for (const s of existingStocks as Array<{ id: number; product_id: number; quantity: number }>) {
+      existingMap.set(s.product_id, s)
+    }
+  }
+
+  // 4. Split into updates (existing stock) and inserts (new stock)
+  const updates: Array<{ id: number; quantity: number }> = []
+  const inserts: Array<{ product_id: number; warehouse_id: number; quantity: number }> = []
+
+  for (const [productId, addQty] of quantityMap) {
+    const existing = existingMap.get(productId)
+    if (existing) {
+      updates.push({ id: existing.id, quantity: existing.quantity + addQty })
+    } else {
+      inserts.push({ product_id: productId, warehouse_id: warehouseId, quantity: addQty })
+    }
+  }
+
+  // 5. Batch update existing stocks
+  for (const u of updates) {
+    const { error: upErr } = await supabase.from('stocks').update({ quantity: u.quantity } as any).eq('id', u.id)
+    if (upErr) return { data: null, error: upErr.message }
+  }
+
+  // 6. Batch insert new stocks
+  if (inserts.length > 0) {
+    const { error: insErr } = await supabase.from('stocks').insert(inserts as any[])
+    if (insErr) return { data: null, error: insErr.message }
+  }
+
+  return { data: null, error: null }
 }
 
 // ====== Stock Adjustment (for manual quantity setting) ======
@@ -124,20 +198,20 @@ export async function createStockAdjustment(input: {
     ref_type: null,
     ref_id: null,
     remark: delta > 0 ? '手动调增' : '手动调减'
-  } as never)
+  } as any)
   if (txErr) return { data: null, error: txErr.message }
 
   // Update stock record
   if (existing) {
     const { error: upErr } = await supabase
       .from('stocks')
-      .update({ quantity: input.quantity } as never)
+      .update({ quantity: input.quantity } as any)
       .eq('id', (existing as { id: number }).id)
     return { data: null, error: upErr?.message ?? null }
   }
 
   const { error: insErr } = await supabase
     .from('stocks')
-    .insert({ product_id: input.product_id, warehouse_id: input.warehouse_id, quantity: input.quantity } as never)
+    .insert({ product_id: input.product_id, warehouse_id: input.warehouse_id, quantity: input.quantity } as any)
   return { data: null, error: insErr?.message ?? null }
 }

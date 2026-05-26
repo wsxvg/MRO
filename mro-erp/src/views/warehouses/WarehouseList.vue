@@ -52,6 +52,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { warehousesApi } from '@/api'
+import { useDebounceFn } from '@/composables/useDebounce'
 import type { Warehouse } from '@/types'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import BasePageHeader from '@/components/BasePageHeader.vue'
@@ -71,8 +72,7 @@ const list = ref<Warehouse[]>([]); const search = ref('')
 const loading = ref(true); const showDelete = ref(false); const deleteTarget = ref<Warehouse | null>(null)
 const showNewModal = ref(false)
 
-let timer: ReturnType<typeof setTimeout>
-function onSearch() { clearTimeout(timer); timer = setTimeout(() => fetchData(), 300) }
+const onSearch = useDebounceFn(() => fetchData(), 300)
 
 function onSaved() { showNewModal.value = false; fetchData() }
 

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { ApiResult, ListResponse } from '@/types'
+import type { ApiResult, ListResponse, Database } from '@/types'
 
 // ====== Stock Report ======
 export async function fetchStockReport(params?: {
@@ -77,7 +77,10 @@ export async function fetchSalesSummary(params?: {
 }
 
 // ====== Dashboard KPIs ======
-export async function fetchDashboardKPIs(): Promise<
+export async function fetchDashboardKPIs(params?: {
+  date_from?: string
+  date_to?: string
+}): Promise<
   ApiResult<{
     total_products: number
     total_customers: number
@@ -89,6 +92,8 @@ export async function fetchDashboardKPIs(): Promise<
 > {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const salesFrom = params?.date_from ?? monthStart
+  const salesTo = params?.date_to
 
   const [products, customers, warehouses, pendingSO, monthSales, lowStock] =
     await Promise.all([
@@ -100,8 +105,9 @@ export async function fetchDashboardKPIs(): Promise<
         .from('sales_orders')
         .select('total_amount')
         .eq('status', 'completed')
-        .gte('created_at', monthStart),
-      supabase.from('stocks').select('*, products!left(min_stock)', { count: 'exact' }).is('products.min_stock', null)
+        .gte('created_at', salesFrom)
+        .lte('created_at', salesTo ?? now.toISOString()),
+      supabase.from('stocks').select('*, products!left(min_stock)')
     ])
 
   const monthSalesTotal = ((monthSales.data ?? []) as any[]).reduce(
@@ -136,42 +142,33 @@ export async function fetchMonthlyTrend(): Promise<ListResponse<{
   sales_count: number
 }>> {
   const now = new Date()
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString()
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().slice(0, 10)
 
-  const salesRes = await supabase
-    .from('sales_orders')
-    .select('created_at, total_amount')
-    .eq('status', 'completed')
-    .gte('created_at', sixMonthsAgo)
+  const { data, error } = await supabase.rpc('get_monthly_sales_trend', {
+    p_start_date: sixMonthsAgo,
+  } as any)
 
-  // Build month buckets for last 6 months
+  const raw = (data ?? []) as Array<{ month: string; sales_amount: number; sales_count: number }>
+
+  // Fill missing months with 0
   const months: string[] = []
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }
 
-  const salesByMonth = new Map<string, { amount: number; count: number }>()
-  months.forEach(m => {
-    salesByMonth.set(m, { amount: 0, count: 0 })
-  })
-
-  for (const row of ((salesRes.data ?? []) as any[])) {
-    const key = row.created_at.slice(0, 7)
-    if (salesByMonth.has(key)) {
-      const e = salesByMonth.get(key)!
-      e.amount += Number(row.total_amount)
-      e.count++
-    }
+  const dbMap = new Map<string, { sales_amount: number; sales_count: number }>()
+  for (const row of raw) {
+    dbMap.set(row.month, { sales_amount: Number(row.sales_amount), sales_count: Number(row.sales_count) })
   }
 
   const result = months.map(m => ({
     month: m,
-    sales_amount: salesByMonth.get(m)?.amount ?? 0,
-    sales_count: salesByMonth.get(m)?.count ?? 0
+    sales_amount: dbMap.get(m)?.sales_amount ?? 0,
+    sales_count: dbMap.get(m)?.sales_count ?? 0,
   }))
 
-  return { data: result, count: result.length, error: null }
+  return { data: result, count: result.length, error: error?.message ?? null }
 }
 
 // ====== Dashboard: inventory by category ======
@@ -203,20 +200,26 @@ export async function fetchInventoryByCategory(): Promise<ListResponse<{
 }
 
 // ====== Dashboard: inventory turnover rate ======
-export async function fetchInventoryTurnoverRate(): Promise<ApiResult<{
+export async function fetchInventoryTurnoverRate(params?: {
+  date_from?: string
+  date_to?: string
+}): Promise<ApiResult<{
   rate: number
   cogs: number
   avg_inventory_value: number
 }>> {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const salesFrom = params?.date_from ?? monthStart
+  const salesTo = params?.date_to ?? now.toISOString()
 
   // COGS = cost of goods sold this month (from completed sales order items)
   const cogsRes = await supabase
     .from('sales_order_items')
     .select('cost_price, quantity, sales_orders!inner(created_at, status)')
     .eq('sales_orders.status', 'completed')
-    .gte('sales_orders.created_at', monthStart)
+    .gte('sales_orders.created_at', salesFrom)
+    .lte('sales_orders.created_at', salesTo)
 
   const cogs = ((cogsRes.data ?? []) as any[]).reduce(
     (sum: number, item: any) => sum + (Number(item.cost_price) * item.quantity),
@@ -241,8 +244,105 @@ export async function fetchInventoryTurnoverRate(): Promise<ApiResult<{
   }
 }
 
-// ====== Dashboard: recent sales orders ======
-export async function fetchRecentOrders(limit: number = 8): Promise<ListResponse<{
+// ====== Profit Report (single query, no N+1) ======
+export interface ProfitRow {
+  id: number
+  order_no: string
+  customer_name: string
+  created_at: string
+  total_amount: number
+  cost_amount: number
+  gross_profit: number
+  margin_rate: string
+}
+
+export async function fetchProfitReport(params?: {
+  date_from?: string
+  date_to?: string
+}): Promise<ListResponse<ProfitRow>> {
+  let query = supabase
+    .from('sales_orders')
+    .select(`
+      id,
+      order_no,
+      created_at,
+      total_amount,
+      customers!left(name),
+      sales_order_items!left(cost_price, quantity)
+    `)
+    .eq('status', 'completed')
+
+  if (params?.date_from) query = query.gte('created_at', params.date_from)
+  if (params?.date_to) query = query.lte('created_at', params.date_to + 'T23:59:59')
+
+  const { data, error } = await query.order('created_at', { ascending: false })
+
+  if (error) return { data: [], count: 0, error: error.message }
+
+  const rows: ProfitRow[] = []
+  for (const raw of (data ?? []) as any[]) {
+    const items: Array<{ cost_price: number; quantity: number }> = (raw.sales_order_items ?? []).map((i: any) => ({
+      cost_price: Number(i.cost_price ?? 0),
+      quantity: Number(i.quantity ?? 0)
+    }))
+    const totalAmount = Number(raw.total_amount ?? 0)
+    const costAmount = items.reduce((s, i) => s + i.cost_price * i.quantity, 0)
+    const grossProfit = totalAmount - costAmount
+    const marginRate = totalAmount > 0 ? ((grossProfit / totalAmount) * 100).toFixed(1) : '0.0'
+
+    rows.push({
+      id: raw.id,
+      order_no: raw.order_no,
+      customer_name: raw.customers?.name ?? '-',
+      created_at: raw.created_at,
+      total_amount: totalAmount,
+      cost_amount: costAmount,
+      gross_profit: grossProfit,
+      margin_rate: marginRate,
+    })
+  }
+
+  return { data: rows, count: rows.length, error: null }
+}
+
+// ====== Stock Transactions by Date Report ======
+export interface StockTransactionByDate {
+  date: string
+  type: string
+  total_quantity: number
+  transaction_count: number
+}
+
+export async function fetchStockTransactionsByDate(params?: {
+  date_from?: string
+  date_to?: string
+  warehouse_id?: number
+  product_id?: number
+  type?: string
+}): Promise<ListResponse<StockTransactionByDate>> {
+  const { data, error } = await supabase.rpc('get_stock_transactions_by_date', {
+    p_date_from: params?.date_from ?? null,
+    p_date_to: params?.date_to ?? null,
+    p_warehouse_id: params?.warehouse_id ?? null,
+    p_product_id: params?.product_id ?? null,
+    p_type: params?.type ?? null,
+  } as any)
+  const mapped = (data ?? []).map((d: any) => ({
+    date: d.date,
+    type: d.type,
+    total_quantity: Number(d.total_quantity),
+    transaction_count: Number(d.transaction_count),
+  }))
+  return { data: mapped, count: mapped.length, error: error?.message ?? null }
+}
+
+export async function fetchRecentOrders(
+  limit: number = 8,
+  params?: {
+    date_from?: string
+    date_to?: string
+  }
+): Promise<ListResponse<{
   id: number
   order_no: string
   counterparty: string
@@ -250,11 +350,16 @@ export async function fetchRecentOrders(limit: number = 8): Promise<ListResponse
   status: string
   created_at: string
 }>> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('sales_orders')
     .select('id, order_no, total_amount, status, created_at, customers!left(name)')
     .order('created_at', { ascending: false })
     .limit(limit)
+
+  if (params?.date_from) query = query.gte('created_at', params.date_from)
+  if (params?.date_to) query = query.lte('created_at', params.date_to)
+
+  const { data, error } = await query
 
   const mapped = ((data ?? []) as any[]).map(o => ({
     id: o.id,

@@ -1,5 +1,5 @@
 ﻿import { supabase } from '@/lib/supabase'
-import type { Category, Product, ApiResult, ListResponse } from '@/types'
+import type { Category, Product, ApiResult, ListResponse, Database } from '@/types'
 
 // ====== Categories ======
 
@@ -22,7 +22,7 @@ export async function createCategory(input: Pick<Category, 'name' | 'sort_order'
     return { data: null, error: `分类「${input.name}」已存在` }
   }
 
-  const { data, error } = await supabase.from('categories').insert(input as never).select().single()
+  const { data, error } = await supabase.from('categories').insert(input as any).select().single()
   return { data, error: error?.message ?? null }
 }
 
@@ -40,7 +40,7 @@ export async function updateCategory(id: number, input: Partial<Pick<Category, '
     }
   }
 
-  const { data, error } = await supabase.from('categories').update(input as never).eq('id', id).select().single()
+  const { data, error } = await supabase.from('categories').update(input as any).eq('id', id).select().single()
   return { data, error: error?.message ?? null }
 }
 
@@ -58,10 +58,10 @@ export async function fetchProducts(params?: {
   page?: number
   limit?: number
 }): Promise<ListResponse<Product>> {
-  // Step 1: Fetch products with category left join only
+  // 单次查询：通过 PostgREST embed 关联 categories 和 stocks
   let query = supabase
     .from('products')
-    .select('*, categories!left(name)', { count: 'exact' })
+    .select('*, categories!left(name), stocks!left(quantity)', { count: 'exact' })
 
   if (params?.search) {
     query = query.ilike('name', `%${params.search}%`)
@@ -89,24 +89,13 @@ export async function fetchProducts(params?: {
     .order('name', { ascending: true })
     .range(from, to)
 
-  // Step 2: Fetch stock totals separately (avoid PostgREST join syntax ambiguity)
-  const productIds = (data ?? []).map((p: any) => p.id)
-  const stockMap: Record<number, number> = {}
-  if (productIds.length > 0) {
-    const { data: stocks } = await supabase
-      .from('stocks')
-      .select('product_id, quantity')
-      .in('product_id', productIds)
-    for (const s of (stocks ?? []) as any[]) {
-      stockMap[s.product_id] = (stockMap[s.product_id] || 0) + (s.quantity || 0)
-    }
-  }
-
+  // stocks 已在同一查询中返回为 [{quantity}, ...]，在 JS 中聚合
   const mapped = (data ?? []).map((p: any) => ({
     ...p,
     category_name: p.categories?.name ?? null,
     categories: undefined,
-    stock_quantity: stockMap[p.id] ?? 0,
+    stocks: undefined,
+    stock_quantity: (p.stocks ?? []).reduce((sum: number, s: any) => sum + (s.quantity ?? 0), 0),
   }))
 
   return { data: mapped, count: count ?? 0, error: error?.message ?? null }
@@ -128,13 +117,22 @@ export async function fetchProduct(id: number): Promise<ApiResult<Product>> {
   return { data: data as Product | null, error: error?.message ?? null }
 }
 
+export async function batchDisableProducts(ids: number[]): Promise<ApiResult<null>> {
+  if (!ids.length) return { data: null, error: null }
+  const { error } = await supabase
+    .from('products')
+    .update({ is_active: false } as any)
+    .in('id', ids)
+  return { data: null, error: error?.message ?? null }
+}
+
 export async function createProduct(input: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'category_name'>): Promise<ApiResult<Product>> {
-  const { data, error } = await supabase.from('products').insert(input as never).select().single()
+  const { data, error } = await supabase.from('products').insert(input as any).select().single()
   return { data, error: error?.message ?? null }
 }
 
 export async function updateProduct(id: number, input: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at'>>): Promise<ApiResult<Product>> {
-  const { data, error } = await supabase.from('products').update(input as never).eq('id', id).select().single()
+  const { data, error } = await supabase.from('products').update(input as any).eq('id', id).select().single()
   return { data, error: error?.message ?? null }
 }
 

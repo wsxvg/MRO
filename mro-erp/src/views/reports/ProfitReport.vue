@@ -3,7 +3,7 @@
     <BasePageHeader title="利润报表" />
 
     <!-- Filter -->
-    <div class="bg-white rounded-xl border border-gray-100 p-4 mb-6">
+    <div class="surface p-4 mb-6">
       <div class="flex flex-wrap items-end gap-4">
         <div>
           <label class="block text-xs font-medium text-gray-400 mb-1.5">开始日期</label>
@@ -19,8 +19,19 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex items-center justify-center py-16">
-      <div class="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+    <div v-if="loading" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div v-for="n in 4" :key="n" class="surface-strong p-4 animate-pulse">
+          <div class="h-3 w-24 bg-gray-100 rounded mb-4"></div>
+          <div class="h-8 w-24 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+      <div class="surface-strong p-5 animate-pulse">
+        <div class="h-4 w-40 bg-gray-100 rounded mb-4"></div>
+        <div class="space-y-3">
+          <div v-for="n in 6" :key="n" class="h-10 bg-gray-50 rounded-xl"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Content -->
@@ -81,8 +92,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { fetchSalesOrders, fetchSalesOrderItems } from '@/api'
-import type { SalesOrderItem } from '@/types'
+import { fetchProfitReport } from '@/api/reports'
+import type { ProfitRow } from '@/api/reports'
 import BasePageHeader from '@/components/BasePageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 import BaseCard from '@/components/BaseCard.vue'
@@ -91,7 +102,7 @@ import BaseTable from '@/components/BaseTable.vue'
 const loading = ref(false)
 const dateFrom = ref('')
 const dateTo = ref('')
-const profitData = ref<any[]>([])
+const profitData = ref<ProfitRow[]>([])
 const profitStats = reactive({ salesAmount: 0, costAmount: 0, grossProfit: 0, marginRate: '0.00' })
 
 function resetFilters() {
@@ -103,43 +114,24 @@ function resetFilters() {
 
 async function fetchData() {
   loading.value = true
-  const res = await fetchSalesOrders({ status: 'completed' })
-  if (res.data) {
-    let orders = res.data
-    if (dateFrom.value) orders = orders.filter(o => o.created_at >= dateFrom.value)
-    if (dateTo.value) orders = orders.filter(o => o.created_at.slice(0, 10) <= dateTo.value)
-
-    const rows: any[] = []
+  const result = await fetchProfitReport({
+    date_from: dateFrom.value || undefined,
+    date_to: dateTo.value || undefined,
+  })
+  if (result.error) {
+    console.error('加载利润报表失败:', result.error)
+  } else {
+    profitData.value = result.data ?? []
     let totalSales = 0, totalCost = 0
-
-    for (const order of orders) {
-      const itemRes = await fetchSalesOrderItems(order.id)
-      const items = itemRes.data || []
-      const orderSales = order.total_amount || 0
-      const orderCost = items.reduce((s, i: SalesOrderItem) => s + (i.cost_price * i.quantity), 0)
-      const grossProfit = orderSales - orderCost
-      const marginRate = orderSales > 0 ? ((grossProfit / orderSales) * 100).toFixed(1) : '0.0'
-
-      rows.push({
-        id: order.id,
-        order_no: order.order_no,
-        customer_name: order.customer_name,
-        created_at: order.created_at,
-        total_amount: orderSales,
-        cost_amount: orderCost,
-        gross_profit: grossProfit,
-        margin_rate: marginRate
-      })
-
-      totalSales += orderSales
-      totalCost += orderCost
+    for (const row of profitData.value) {
+      totalSales += row.total_amount
+      totalCost += row.cost_amount
     }
-
-    profitData.value = rows
+    const gross = totalSales - totalCost
     profitStats.salesAmount = totalSales
     profitStats.costAmount = totalCost
-    profitStats.grossProfit = totalSales - totalCost
-    profitStats.marginRate = totalSales > 0 ? ((totalSales - totalCost) / totalSales * 100).toFixed(1) : '0.00'
+    profitStats.grossProfit = gross
+    profitStats.marginRate = totalSales > 0 ? ((gross / totalSales) * 100).toFixed(1) : '0.00'
   }
   loading.value = false
 }

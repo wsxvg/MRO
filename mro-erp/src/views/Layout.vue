@@ -1,14 +1,14 @@
 <template>
-  <div class="flex h-screen bg-gray-50">
+  <div class="flex h-screen bg-[radial-gradient(circle_at_top_left,_rgba(17,24,39,0.04),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(75,85,99,0.05),_transparent_26%),#f8fafc]">
 
     <!-- Desktop sidebar -->
     <aside :class="[
-      'hidden lg:flex flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300',
+      'hidden lg:flex flex-col bg-white/90 backdrop-blur-xl border-r border-gray-200/80 flex-shrink-0 transition-all duration-300 shadow-[0_12px_40px_rgba(15,23,42,0.04)]',
       sidebarCollapsed ? 'w-nav' : 'w-nav-expanded'
     ]">
       <!-- Logo -->
-      <div :class="['flex items-center h-14 border-b border-gray-100', sidebarCollapsed ? 'justify-center' : 'px-4 gap-3']">
-        <div class="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+      <div :class="['flex items-center h-16 border-b border-gray-100/80', sidebarCollapsed ? 'justify-center' : 'px-4 gap-3']">
+        <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
             <circle cx="12" cy="12" r="5.5" stroke-dasharray="2 3" />
             <circle cx="12" cy="12" r="3" stroke-dasharray="1.5 2" />
@@ -20,7 +20,10 @@
             <circle cx="16.24" cy="16.24" r="0.8" />
           </svg>
         </div>
-        <span v-show="!sidebarCollapsed" class="font-bold text-gray-900 text-sm truncate">MRO 进销存</span>
+        <div v-show="!sidebarCollapsed" class="min-w-0">
+          <span class="block font-semibold text-gray-900 text-sm truncate">MRO 进销存</span>
+          <span class="block text-[11px] text-gray-400 mt-0.5">仓储 · 销售 · 报表</span>
+        </div>
       </div>
 
       <!-- Nav items -->
@@ -31,11 +34,11 @@
           :title="sidebarCollapsed ? item.label : ''"
           :class="[
             sidebarCollapsed
-              ? 'w-10 h-10 flex items-center justify-center rounded-lg transition-colors mx-auto'
-              : 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
+              ? 'w-10 h-10 flex items-center justify-center rounded-xl transition-colors mx-auto'
+              : 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors',
             isActive(item.path)
-              ? 'bg-gray-100 text-gray-900'
-              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              ? 'bg-gray-900 text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/80'
           ]"
           @click="navigate(item.path)"
         >
@@ -46,23 +49,26 @@
       </nav>
 
       <!-- Collapse toggle + User -->
-      <div :class="['border-t border-gray-100', sidebarCollapsed ? 'flex flex-col items-center py-3 space-y-3' : 'flex items-center justify-between px-3 py-3']">
+      <div :class="['border-t border-gray-100/80', sidebarCollapsed ? 'flex flex-col items-center py-3 space-y-3' : 'flex items-center justify-between px-3 py-3']">
         <button
           @click="toggleSidebar"
           :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
-          class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          class="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
         >
           <svg class="w-4 h-4 transition-transform duration-300" :class="sidebarCollapsed ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
           </svg>
         </button>
         <div v-show="!sidebarCollapsed" class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
+          <div class="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
             H
           </div>
-          <span class="text-sm text-gray-600">管理员</span>
+          <div>
+            <span class="block text-sm text-gray-700 font-medium">管理员</span>
+            <span class="block text-[11px] text-gray-400">本地账号</span>
+          </div>
         </div>
-        <div v-show="sidebarCollapsed" class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
+        <div v-show="sidebarCollapsed" class="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
           H
         </div>
       </div>
@@ -71,9 +77,9 @@
     <!-- Mobile overlay + sidebar -->
     <div v-if="sidebarOpen" class="fixed inset-0 z-30 lg:hidden">
       <div class="absolute inset-0 bg-black/30" @click="sidebarOpen = false" />
-      <aside class="absolute left-0 top-0 bottom-0 w-60 bg-white shadow-xl flex flex-col">
+        <aside class="absolute left-0 top-0 bottom-0 w-60 bg-white shadow-2xl flex flex-col">
         <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-          <div class="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div class="w-8 h-8 bg-gray-900 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
               <circle cx="12" cy="12" r="5.5" stroke-dasharray="2 3" />
               <circle cx="12" cy="12" r="3" stroke-dasharray="1.5 2" />
@@ -93,9 +99,9 @@
             v-for="item in navItems"
             :key="item.path"
             :class="[
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors',
               isActive(item.path)
-                ? 'bg-gray-100 text-gray-900'
+                ? 'bg-gray-900 text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
             ]"
             @click="navigate(item.path)"
@@ -126,7 +132,7 @@
     <!-- Main content area -->
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Header -->
-      <header class="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-200 px-4 lg:px-6 h-14 flex items-center justify-between">
+        <header class="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-gray-200/80 px-4 lg:px-6 h-14 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <button class="lg:hidden w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100" @click="sidebarOpen = true">
             <i class="ri-menu-line text-lg"></i>
@@ -134,7 +140,7 @@
         </div>
         <div class="flex items-center gap-2">
           <span class="text-sm text-gray-400 hidden sm:block">{{ currentTime }}</span>
-          <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 transition-colors" @click="handleLogout" title="退出登录">
+          <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-xl hover:bg-gray-100 transition-colors" @click="handleLogout" title="退出登录">
             <i class="ri-logout-box-line text-lg"></i>
           </button>
         </div>
@@ -142,7 +148,11 @@
 
       <!-- Page content -->
       <main class="flex-1 overflow-auto p-4 lg:p-6">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </main>
     </div>
   </div>

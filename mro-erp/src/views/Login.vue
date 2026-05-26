@@ -201,11 +201,7 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-between text-sm">
-            <label class="flex items-center gap-2 cursor-pointer group">
-              <input type="checkbox" v-model="rememberMe" class="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30 cursor-pointer" />
-              <span class="text-gray-500 group-hover:text-gray-700 transition-colors">记住我</span>
-            </label>
+          <div class="flex items-center justify-end text-sm">
             <button type="button" @click="openChangePassword" class="text-primary-600 hover:text-primary-700 font-medium transition-colors">
               修改密码
             </button>
@@ -308,7 +304,6 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 const showPassword = ref(false)
-const rememberMe = ref(false)
 const isFieldFocused = ref('')
 
 // Change password dialog

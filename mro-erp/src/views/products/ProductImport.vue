@@ -10,21 +10,41 @@
         <h1 class="text-2xl font-bold text-gray-900">导入商品</h1>
       </div>
 
-      <div class="card mb-6">
-        <div class="text-center py-8">
-          <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div
+        class="card mb-6 border-dashed transition-colors"
+        :class="isDragging ? 'border-gray-900 bg-gray-50' : 'border-gray-200'"
+        @dragenter.prevent="handleDragEnter"
+        @dragover.prevent="handleDragOver"
+        @dragleave.prevent="handleDragLeave"
+        @drop.prevent="handleDrop"
+      >
+        <div class="text-center py-8 px-6">
+          <svg class="w-16 h-16 mx-auto mb-4" :class="isDragging ? 'text-gray-900' : 'text-gray-300'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
-          <p class="text-gray-600 mb-2">点击或拖拽文件到此处上传</p>
+          <p class="text-gray-700 mb-2 font-medium">{{ isDragging ? '松开即可上传文件' : '点击或拖拽文件到此处上传' }}</p>
           <p class="text-sm text-gray-400 mb-4">支持 .xlsx, .xls, .csv 格式</p>
+          <div class="flex flex-wrap items-center justify-center gap-2 mb-4">
+            <span v-if="currentFileName" class="inline-flex items-center gap-1.5 text-xs text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
+              <i class="ri-file-text-line text-sm"></i>
+              {{ currentFileName }}
+            </span>
+            <span v-else class="text-xs text-gray-400">还没有选择文件</span>
+          </div>
           <input type="file" accept=".xlsx,.xls,.csv" class="hidden" ref="fileInput" @change="handleFile" />
           <button class="btn-primary" @click="openFile">选择文件</button>
           <button class="btn-secondary ml-2" @click="downloadTemplate">下载模板</button>
         </div>
       </div>
 
-      <div v-if="parseError" class="card mb-6 border-red-300 bg-red-50">
-        <p class="text-sm text-red-600">{{ parseError }}</p>
+      <div v-if="parseError" class="card mb-6 border-red-200 bg-red-50">
+        <div class="flex items-start gap-3 p-4">
+          <i class="ri-error-warning-line text-red-500 text-lg mt-0.5"></i>
+          <div>
+            <p class="text-sm font-medium text-red-700 mb-1">文件解析失败</p>
+            <p class="text-sm text-red-600">{{ parseError }}</p>
+          </div>
+        </div>
       </div>
 
       <div v-if="preview.length > 0" class="card mb-6">
@@ -67,6 +87,10 @@
         </div>
       </div>
 
+      <div v-else-if="!parseError" class="mb-6 text-sm text-gray-400">
+        选中文件后会在这里显示预览，确认无误再导入。
+      </div>
+
       <div v-if="result" class="card">
         <h3 class="text-lg font-semibold text-gray-900 mb-2">导入结果</h3>
         <p class="text-sm">新增: <span class="text-green-600 font-medium">{{ result.created_count }}</span></p>
@@ -83,7 +107,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import * as XLSX from 'xlsx'
 import { productsApi } from '@/api'
 
 interface PreviewRow {
@@ -102,9 +125,38 @@ const duplicateStrategy = ref<'skip' | 'overwrite'>('overwrite')
 const result = ref<{ created_count: number; updated_count: number; skipped_count: number; error_count: number; errors?: string[] } | null>(null)
 const parseError = ref<string | null>(null)
 const saving = ref(false)
-let currentFileName = ''
+const currentFileName = ref('')
+const isDragging = ref(false)
+let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null
+
+async function getXLSX() {
+  xlsxModulePromise ||= import('xlsx')
+  return xlsxModulePromise
+}
 
 function openFile() { fileInput.value?.click() }
+
+function handleDragEnter() {
+  isDragging.value = true
+}
+
+function handleDragOver() {
+  isDragging.value = true
+}
+
+function handleDragLeave() {
+  isDragging.value = false
+}
+
+function handleDrop(e: DragEvent) {
+  isDragging.value = false
+  const file = e.dataTransfer?.files?.[0]
+  if (!file || !fileInput.value) return
+  const dt = new DataTransfer()
+  dt.items.add(file)
+  fileInput.value.files = dt.files
+  handleFile({ target: fileInput.value } as unknown as Event)
+}
 
 const COLUMN_MAP: Record<string, keyof PreviewRow> = {
   '名称': 'name',
@@ -159,7 +211,8 @@ function parseCSV(text: string): PreviewRow[] {
   return rows
 }
 
-function parseXLSX(data: ArrayBuffer): PreviewRow[] {
+async function parseXLSX(data: ArrayBuffer): Promise<PreviewRow[]> {
+  const XLSX = await getXLSX()
   const workbook = XLSX.read(data, { type: 'array' })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '' })
@@ -201,19 +254,21 @@ function handleFile(e: Event) {
   parseError.value = null
   result.value = null
   preview.value = []
-  currentFileName = file.name
+  currentFileName.value = file.name
 
   const isXLSX = /\.xlsx?$/i.test(file.name)
 
   if (isXLSX) {
     const reader = new FileReader()
     reader.onload = () => {
-      try {
-        preview.value = parseXLSX(reader.result as ArrayBuffer)
-        if (!preview.value.length) parseError.value = '未能解析到有效商品数据，请检查列名是否为"名称"'
-      } catch (err: any) {
-        parseError.value = `文件解析失败: ${err?.message || '未知错误'}`
-      }
+      ;(async () => {
+        try {
+          preview.value = await parseXLSX(reader.result as ArrayBuffer)
+          if (!preview.value.length) parseError.value = '未能解析到有效商品数据，请检查列名是否为"名称"'
+        } catch (err: any) {
+          parseError.value = `文件解析失败: ${err?.message || '未知错误'}`
+        }
+      })()
     }
     reader.readAsArrayBuffer(file)
   } else {

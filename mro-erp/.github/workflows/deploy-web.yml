@@ -1,0 +1,65 @@
+# 构建前端并部署到 GitHub Pages
+# 访问地址: https://wsxvg.github.io/MRO/
+name: Deploy Web App
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'backups/**'
+      - 'docs/**'
+      - 'scripts/**'
+      - 'src-tauri/**'
+  workflow_dispatch:
+
+# 允许 GITHUB_TOKEN 写入 gh-pages 分支
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mro-erp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: mro-erp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_BASE_URL: '/MRO/'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: mro-erp/dist
+
+  # 单独 job 让 deploy-pages action 可以使用 pages 环境的默认 token
+  deploy-to-pages:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

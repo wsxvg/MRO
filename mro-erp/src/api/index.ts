@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/types'
 export * from './products'
 export * from './customers'
 export * from './warehouses'
@@ -9,10 +10,10 @@ export * from './units'
 
 // Re-import for wrapper objects
 import {
-  fetchProducts, fetchProduct, createProduct, updateProduct, deleteProduct,
+  fetchProducts, fetchProduct, createProduct, updateProduct, deleteProduct, batchDisableProducts,
   fetchCategories, createCategory, updateCategory, deleteCategory
 } from './products'
-import { fetchCustomers, fetchCustomer, createCustomer, updateCustomer, deleteCustomer } from './customers'
+import { fetchCustomers, fetchCustomer, createCustomer, updateCustomer, deleteCustomer, batchDeleteCustomers } from './customers'
 import { createStockIn } from './stockTransactions'
 import { fetchWarehouses, fetchWarehouse, createWarehouse, updateWarehouse, deleteWarehouse, fetchDefaultWarehouse, fetchStockByProduct } from './warehouses'
 import { fetchUnits, createUnit, updateUnit, deleteUnit } from './units'
@@ -24,6 +25,7 @@ export const productsApi = {
   create: createProduct,
   update: updateProduct,
   delete: deleteProduct,
+  batchDisable: batchDisableProducts,
   async exportAll(): Promise<{ data: any[] | null; error: string | null }> {
     const { data, error } = await supabase
       .from('products')
@@ -74,7 +76,7 @@ export const productsApi = {
       const missingCats = [...new Set(items.map(i => i.category).filter(Boolean) as string[])]
         .filter(name => !catMap[name])
       await Promise.all(missingCats.map(async (name) => {
-        const r = await supabase.from('categories').insert({ name } as never).select('id, name').single() as { data: { id: number; name: string } | null; error: any }
+        const r = await supabase.from('categories').insert({ name } as any).select('id, name').single() as { data: { id: number; name: string } | null; error: any }
         if (r.data && !r.error) {
           catMap[r.data.name] = r.data.id
         }
@@ -133,7 +135,7 @@ export const productsApi = {
       let created = 0
       let updated = 0
       if (toInsert.length > 0) {
-        const { error } = await supabase.from('products').insert(toInsert as never)
+        const { error } = await supabase.from('products').insert(toInsert as any[])
         if (error) {
           errors.push(`批量新增失败: ${error.message}`)
         } else {
@@ -143,7 +145,7 @@ export const productsApi = {
 
       // 5. 并发更新（重复项通常较少）
       const updateResults = await Promise.all(toUpdate.map(async ({ id, values }) => {
-        const { error } = await supabase.from('products').update(values as never).eq('id', id)
+        const { error } = await supabase.from('products').update(values as any).eq('id', id)
         return { name: values.name, error }
       }))
       for (const r of updateResults) {
@@ -195,19 +197,19 @@ export const customersApi = {
   create: createCustomer,
   update: updateCustomer,
   delete: deleteCustomer,
+  batchDelete: batchDeleteCustomers,
     async import(items: Array<{ name: string; contact_person?: string | null; phone?: string | null; address?: string | null }>): Promise<{ success: boolean; error?: string }> {
     try {
-      for (const item of items) {
-        const { error } = await supabase.from('customers').insert({
-          name: item.name,
-          type: 'retail',
-          contact_person: item.contact_person || null,
-          phone: item.phone || null,
-          address: item.address || null,
-          credit_limit: 0,
-        } as never)
-        if (error) return { success: false, error: error.message }
-      }
+      const rows = items.map(item => ({
+        name: item.name,
+        type: 'retail',
+        contact_person: item.contact_person || null,
+        phone: item.phone || null,
+        address: item.address || null,
+        credit_limit: 0,
+      }))
+      const { error } = await supabase.from('customers').insert(rows as any[])
+      if (error) return { success: false, error: error.message }
       return { success: true }
     } catch (e: any) {
       return { success: false, error: e?.message ?? '导入失败' }

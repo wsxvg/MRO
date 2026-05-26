@@ -100,6 +100,15 @@
         </div>
       </form>
     </div>
+
+    <PasswordDialog
+      ref="passwordDialogRef"
+      :visible="showPasswordDialog"
+      title="查看成本价"
+      description="请输入成本价密码以解锁"
+      @verified="onPasswordVerified"
+      @close="onPasswordDialogClose"
+    />
   </div>
 </template>
 
@@ -109,6 +118,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { productsApi, categoriesApi, unitsApi, fetchWarehouses } from '@/api'
 import type { Category, Unit, Warehouse } from '@/types'
 import { useCostPriceAccess } from '@/composables/useCostPriceAccess'
+import PasswordDialog from '@/components/PasswordDialog.vue'
 
 const props = withDefaults(defineProps<{
   standalone?: boolean
@@ -134,10 +144,23 @@ const error = ref('')
 
 const { isUnlocked, verify, lock } = useCostPriceAccess()
 
+const showPasswordDialog = ref(false)
+const passwordDialogRef = ref<InstanceType<typeof PasswordDialog> | null>(null)
+
 function unlockCostPrice() {
-  const pwd = window.prompt('请输入查看成本价的密码：')
-  if (pwd === null) return
-  if (!verify(pwd)) window.alert('密码错误')
+  showPasswordDialog.value = true
+}
+
+function onPasswordVerified(pwd: string) {
+  if (verify(pwd)) {
+    showPasswordDialog.value = false
+  } else {
+    passwordDialogRef.value?.showError('密码错误')
+  }
+}
+
+function onPasswordDialogClose() {
+  showPasswordDialog.value = false
 }
 
 const form = reactive({

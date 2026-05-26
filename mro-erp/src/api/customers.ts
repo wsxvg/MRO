@@ -1,5 +1,5 @@
 ﻿import { supabase } from '@/lib/supabase'
-import type { Customer, CustomerPrice, ApiResult, ListResponse } from '@/types'
+import type { Customer, CustomerPrice, ApiResult, ListResponse, Database } from '@/types'
 
 // ====== Customers ======
 
@@ -41,7 +41,7 @@ export async function fetchCustomer(id: number): Promise<ApiResult<Customer>> {
 export async function createCustomer(
   input: Omit<Customer, 'id' | 'created_at' | 'updated_at'>
 ): Promise<ApiResult<Customer>> {
-  const { data, error } = await supabase.from('customers').insert(input as never).select().single()
+  const { data, error } = await supabase.from('customers').insert(input as any).select().single()
   return { data, error: error?.message ?? null }
 }
 
@@ -49,12 +49,18 @@ export async function updateCustomer(
   id: number,
   input: Partial<Omit<Customer, 'id' | 'created_at' | 'updated_at'>>
 ): Promise<ApiResult<Customer>> {
-  const { data, error } = await supabase.from('customers').update(input as never).eq('id', id).select().single()
+  const { data, error } = await supabase.from('customers').update(input as any).eq('id', id).select().single()
   return { data, error: error?.message ?? null }
 }
 
 export async function deleteCustomer(id: number): Promise<ApiResult<null>> {
   const { error } = await supabase.from('customers').delete().eq('id', id)
+  return { data: null, error: error?.message ?? null }
+}
+
+export async function batchDeleteCustomers(ids: number[]): Promise<ApiResult<null>> {
+  if (!ids.length) return { data: null, error: null }
+  const { error } = await supabase.from('customers').delete().in('id', ids)
   return { data: null, error: error?.message ?? null }
 }
 
@@ -83,7 +89,7 @@ export async function fetchCustomerPrices(
 export async function upsertCustomerPrices(
   prices: { customer_id: number; product_id: number; price: number }[]
 ): Promise<ApiResult<null>> {
-  const { error } = await supabase.from('customer_prices').upsert(prices as never, {
+  const { error } = await supabase.from('customer_prices').upsert(prices as any[], {
     onConflict: 'customer_id,product_id'
   })
   return { data: null, error: error?.message ?? null }

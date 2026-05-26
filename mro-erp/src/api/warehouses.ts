@@ -1,5 +1,5 @@
 ﻿import { supabase } from '@/lib/supabase'
-import type { Warehouse, Stock, ApiResult, ListResponse } from '@/types'
+import type { Database, Warehouse, Stock, ApiResult, ListResponse } from '@/types'
 
 // ====== Warehouses ======
 
@@ -19,7 +19,7 @@ export async function fetchWarehouse(id: number): Promise<ApiResult<Warehouse>> 
 export async function createWarehouse(
   input: Omit<Warehouse, 'id' | 'created_at' | 'updated_at'>
 ): Promise<ApiResult<Warehouse>> {
-  const { data, error } = await supabase.from('warehouses').insert(input as never).select().single()
+  const { data, error } = await supabase.from('warehouses').insert(input as any).select().single()
   return { data, error: error?.message ?? null }
 }
 
@@ -27,7 +27,7 @@ export async function updateWarehouse(
   id: number,
   input: Partial<Omit<Warehouse, 'id' | 'created_at' | 'updated_at'>>
 ): Promise<ApiResult<Warehouse>> {
-  const { data, error } = await supabase.from('warehouses').update(input as never).eq('id', id).select().single()
+  const { data, error } = await supabase.from('warehouses').update(input as any).eq('id', id).select().single()
   return { data, error: error?.message ?? null }
 }
 

@@ -1,7 +1,7 @@
 <template>
-  <div class="bg-white rounded-xl border border-gray-100" :class="{ 'p-5': !noPadding && !paddingless }">
+  <div class="surface" :class="{ 'p-5': !noPadding && !paddingless }">
     <div v-if="$slots.header || title" class="flex items-center justify-between mb-4">
-      <h3 v-if="title" class="text-sm font-semibold text-gray-900">{{ title }}</h3>
+      <h3 v-if="title" class="text-sm font-semibold text-gray-900 tracking-wide">{{ title }}</h3>
       <slot name="header" />
     </div>
     <slot />

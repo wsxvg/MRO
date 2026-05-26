@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-xl border border-gray-100 p-4 mb-6">
+  <div class="surface mb-6 p-4">
     <div class="flex flex-wrap items-end gap-4">
       <!-- Search -->
       <div v-if="showSearch" class="min-w-[200px] flex-1">
@@ -7,7 +7,7 @@
           :value="modelValue"
           @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
           type="text"
-          class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          class="block w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
           :placeholder="searchPlaceholder"
         />
       </div>
@@ -17,7 +17,7 @@
         <select
           :value="filter.value"
           @change="$emit('filter-change', { key: filter.key, value: ($event.target as HTMLSelectElement).value })"
-          class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          class="block w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
         >
           <option value="">{{ filter.label }}</option>
           <option v-for="opt in filter.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>

@@ -274,6 +274,59 @@ CREATE POLICY "全员可读写" ON sales_return_items FOR ALL USING (true) WITH 
 CREATE POLICY "全员可读写" ON stock_transfers FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "全员可读写" ON stock_transfer_items FOR ALL USING (true) WITH CHECK (true);
 
+-- 19. RPC: get_monthly_sales_trend
+CREATE OR REPLACE FUNCTION get_monthly_sales_trend(p_start_date DATE DEFAULT NULL)
+RETURNS TABLE (
+  month TEXT,
+  sales_amount NUMERIC,
+  sales_count BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    TO_CHAR(DATE_TRUNC('month', so.created_at), 'YYYY-MM')::TEXT AS month,
+    COALESCE(SUM(so.total_amount), 0)::NUMERIC AS sales_amount,
+    COUNT(*)::BIGINT AS sales_count
+  FROM sales_orders so
+  WHERE so.status = 'completed'
+    AND (p_start_date IS NULL OR so.created_at >= p_start_date::TIMESTAMPTZ)
+  GROUP BY DATE_TRUNC('month', so.created_at)
+  ORDER BY DATE_TRUNC('month', so.created_at);
+END;
+$$ LANGUAGE plpgsql;
+
+-- 20. RPC: get_stock_transactions_by_date
+CREATE OR REPLACE FUNCTION get_stock_transactions_by_date(
+  p_date_from DATE DEFAULT NULL,
+  p_date_to DATE DEFAULT NULL,
+  p_warehouse_id BIGINT DEFAULT NULL,
+  p_product_id BIGINT DEFAULT NULL,
+  p_type TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+  date TEXT,
+  type TEXT,
+  total_quantity NUMERIC,
+  transaction_count BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    TO_CHAR(st.created_at::DATE, 'YYYY-MM-DD')::TEXT,
+    st.type::TEXT,
+    SUM(ABS(st.quantity))::NUMERIC AS total_quantity,
+    COUNT(*)::BIGINT AS transaction_count
+  FROM stock_transactions st
+  WHERE (p_date_from IS NULL OR st.created_at >= p_date_from::TIMESTAMPTZ)
+    AND (p_date_to IS NULL OR st.created_at <= (p_date_to::TIMESTAMPTZ + INTERVAL '1 day' - INTERVAL '1 second'))
+    AND (p_warehouse_id IS NULL OR st.warehouse_id = p_warehouse_id)
+    AND (p_product_id IS NULL OR st.product_id = p_product_id)
+    AND (p_type IS NULL OR st.type = p_type)
+  GROUP BY TO_CHAR(st.created_at::DATE, 'YYYY-MM-DD'), st.type
+  ORDER BY TO_CHAR(st.created_at::DATE, 'YYYY-MM-DD') DESC, st.type;
+END;
+$$ LANGUAGE plpgsql;
+
 -- 19. RPC: complete_sales_order
 CREATE OR REPLACE FUNCTION complete_sales_order(p_order_id BIGINT)
 RETURNS VOID AS $$
@@ -304,6 +357,13 @@ BEGIN
   UPDATE sales_orders SET status = 'completed', total_amount = v_total WHERE id = p_order_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- 21. Supabase Realtime 启用（用于 #34 实时更新）
+-- 在 Supabase SQL Editor 中执行以下语句以启用表的实时变更推送
+-- ALTER PUBLICATION supabase_realtime ADD TABLE sales_orders;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE stocks;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE products;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE customers;
 
 -- 20. RPC: complete_sales_return
 CREATE OR REPLACE FUNCTION complete_sales_return(p_return_id BIGINT)

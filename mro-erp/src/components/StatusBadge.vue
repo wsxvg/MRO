@@ -1,6 +1,6 @@
 <template>
-  <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium" :class="bgClass">
-    <span class="w-1.5 h-1.5 rounded-full" :class="dotClass" />
+  <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium tracking-wide" :class="bgClass">
+    <span class="w-1.5 h-1.5 rounded-full ring-2 ring-current/10" :class="dotClass" />
     {{ label }}
   </span>
 </template>

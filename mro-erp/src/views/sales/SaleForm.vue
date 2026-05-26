@@ -32,10 +32,12 @@
             <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
               <div class="md:col-span-5">
                 <label class="label text-xs md:hidden">商品</label>
-                <select v-model="item.product_id" class="input text-sm" @change="onProductChange(idx)">
-                  <option value="">请选择商品</option>
-                  <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} <template v-if="p.specification">({{ p.specification }})</template></option>
-                </select>
+                <SearchableSelect
+                  :options="productOptions"
+                  :model-value="item.product_id"
+                  placeholder="请选择商品"
+                  @update:model-value="onProductSelect(idx, $event)"
+                />
               </div>
               <div class="md:col-span-2">
                 <label class="label text-xs md:hidden">数量</label>
@@ -79,17 +81,11 @@
           <div class="space-y-4">
             <div>
               <label class="label">客户 <span class="text-red-500">*</span></label>
-              <select v-model="form.customer_id" class="input" required>
-                <option value="">请选择客户</option>
-                <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
+              <SearchableSelect :options="customerOptions" v-model="form.customer_id" placeholder="请选择客户" />
             </div>
             <div>
               <label class="label">仓库 <span class="text-red-500">*</span></label>
-              <select v-model="form.warehouse_id" class="input" required>
-                <option value="">请选择仓库</option>
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-              </select>
+              <SearchableSelect :options="warehouseOptions" v-model="form.warehouse_id" placeholder="请选择仓库" />
             </div>
             <div>
               <label class="label">备注</label>
@@ -145,6 +141,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchSalesOrder, createSalesOrder, updateSalesOrder, completeSalesOrder, fetchSalesOrderItems, saveSalesOrderItems } from '@/api'
 import { fetchCustomers } from '@/api'
@@ -165,16 +162,26 @@ const items = reactive<{ product_id: number | null; quantity: number; unit_price
 
 const total = computed(() => items.reduce((s, i) => s + (i.line_total || 0), 0))
 
+const productOptions = computed(() =>
+  products.value.map(p => ({ value: p.id, label: p.name }))
+)
+const customerOptions = computed(() =>
+  customers.value.map(c => ({ value: c.id, label: c.name }))
+)
+const warehouseOptions = computed(() =>
+  warehouses.value.map(w => ({ value: w.id, label: w.name }))
+)
+
 function addRow() {
   items.push({ product_id: null, quantity: 1, unit_price: 0, cost_price: 0, line_total: 0 })
 }
 function calcLine(idx: number) {
   items[idx].line_total = (items[idx].quantity || 0) * (items[idx].unit_price || 0)
 }
-function onProductChange(idx: number) {
-  const pid = items[idx].product_id
-  if (!pid) return
-  const p = products.value.find(pr => pr.id === pid)
+function onProductSelect(idx: number, val: string | number | null) {
+  items[idx].product_id = val as number | null
+  if (!val) return
+  const p = products.value.find(pr => pr.id === val)
   if (p) {
     items[idx].unit_price = p.reference_price || 0
     calcLine(idx)
@@ -206,6 +213,7 @@ async function saveAsDraft() { await handleSubmit('draft') }
 async function saveAndComplete() { await handleSubmit('completed') }
 
 async function handleSubmit(status: string) {
+  if (saving.value) return
   saving.value = true; error.value = ''
   try {
     // 始终先存为草稿，再由 RPC 原子化完成（库存扣减 + 状态变更）

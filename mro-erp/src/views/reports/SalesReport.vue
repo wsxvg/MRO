@@ -3,7 +3,7 @@
     <BasePageHeader title="销售报表" />
 
     <!-- Filter -->
-    <div class="bg-white rounded-xl border border-gray-100 p-4 mb-6">
+    <div class="surface p-4 mb-6">
       <div class="flex flex-wrap items-end gap-4">
         <div>
           <label class="block text-xs font-medium text-gray-400 mb-1.5">开始日期</label>
@@ -19,8 +19,19 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex items-center justify-center py-16">
-      <div class="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+    <div v-if="loading" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div v-for="n in 3" :key="n" class="surface-strong p-4 animate-pulse">
+          <div class="h-3 w-24 bg-gray-100 rounded mb-4"></div>
+          <div class="h-8 w-32 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+      <div class="surface-strong p-5 animate-pulse">
+        <div class="h-4 w-40 bg-gray-100 rounded mb-4"></div>
+        <div class="space-y-3">
+          <div v-for="n in 6" :key="n" class="h-10 bg-gray-50 rounded-xl"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Content -->
