@@ -40,7 +40,12 @@ jobs:
       - name: Build
         env:
           VITE_BASE_URL: /MRO/
+          VITE_SUPABASE_URL: https://gzvymxcojrljkprkgoap.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6dnlteGNvanJsamtwcmtnb2FwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzUwOTYsImV4cCI6MjA5NDk1MTA5Nn0.1I-5tJK_CNB6czEWZg0do_IgF1ohRnHZ5FJvGMD79k0
         run: npm run build
+
+      - name: Create 404.html for SPA fallback
+        run: cp dist/index.html dist/404.html
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
