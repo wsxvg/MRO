@@ -142,7 +142,7 @@ const warehouses = ref<Warehouse[]>([])
 const saving = ref(false)
 const error = ref('')
 
-const { isUnlocked, verify, lock } = useCostPriceAccess()
+const { isUnlocked, verify, lock, unlock } = useCostPriceAccess()
 
 const showPasswordDialog = ref(false)
 const passwordDialogRef = ref<InstanceType<typeof PasswordDialog> | null>(null)
@@ -272,5 +272,10 @@ onMounted(() => {
   loadCategories()
   loadUnits()
   loadProduct()
+  
+  // 新增商品时默认解锁成本价，方便直接输入
+  if (!isEdit) {
+    unlock()
+  }
 })
 </script>
