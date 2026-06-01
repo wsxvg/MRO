@@ -45,7 +45,6 @@
         <BaseTable
           :columns="[
             { key: 'product_name', label: '商品名称' },
-            { key: 'product_sku', label: 'SKU' },
             { key: 'warehouse_name', label: '仓库' },
             { key: 'quantity', label: '库存数量', align: 'right' },
             { key: 'min_stock', label: '最低库存', align: 'right' },

@@ -227,4 +227,14 @@ export async function createPayment(
   return { data, error: error?.message ?? null }
 }
 
+export async function fetchPaymentRecords(salesOrderId: number): Promise<ListResponse<PaymentRecord>> {
+  const { data, error } = await supabase
+    .from('payment_records')
+    .select('*')
+    .eq('sales_order_id', salesOrderId)
+    .order('created_at', { ascending: false })
+
+  return { data: (data as PaymentRecord[]) ?? [], count: data?.length ?? 0, error: error?.message ?? null }
+}
+
 

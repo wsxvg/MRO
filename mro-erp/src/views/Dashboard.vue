@@ -158,7 +158,7 @@
       </div>
 
       <!-- Row 3: Pie + Pending -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <!-- Inventory Pie -->
         <div class="surface-strong p-5">
           <h3 class="text-sm font-semibold text-gray-900 mb-4">库存分类分布</h3>
@@ -192,6 +192,52 @@
           </div>
         </div>
       </div>
+
+      <!-- Row 4: Hot Products -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Hot by Quantity -->
+        <div class="surface-strong p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">
+              <i class="ri-fire-line text-orange-500 mr-1"></i>热销商品 TOP 10（按数量）
+            </h3>
+          </div>
+          <div v-if="hotByQuantity.length === 0" class="py-8 text-center text-sm text-gray-400">暂无数据</div>
+          <div v-else class="space-y-2">
+            <div v-for="(item, i) in hotByQuantity" :key="i" class="flex items-center justify-between py-2 px-3 rounded-lg" :class="i < 3 ? 'bg-orange-50/60' : 'hover:bg-gray-50'">
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="w-5 h-5 flex-shrink-0 rounded-full text-xs font-bold flex items-center justify-center" :class="i < 3 ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-500'">{{ i + 1 }}</span>
+                <div class="min-w-0">
+                  <span class="text-sm font-medium text-gray-900 truncate block">{{ item.product_name }}</span>
+                  <span v-if="item.specification" class="text-xs text-gray-400 truncate block">{{ item.specification }}</span>
+                </div>
+              </div>
+              <span class="text-sm font-semibold text-gray-900 flex-shrink-0">{{ item.total_quantity }} 件</span>
+            </div>
+          </div>
+        </div>
+        <!-- Hot by Revenue -->
+        <div class="surface-strong p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">
+              <i class="ri-money-cny-circle-line text-emerald-500 mr-1"></i>热销商品 TOP 10（按销售额）
+            </h3>
+          </div>
+          <div v-if="hotByRevenue.length === 0" class="py-8 text-center text-sm text-gray-400">暂无数据</div>
+          <div v-else class="space-y-2">
+            <div v-for="(item, i) in hotByRevenue" :key="i" class="flex items-center justify-between py-2 px-3 rounded-lg" :class="i < 3 ? 'bg-emerald-50/60' : 'hover:bg-gray-50'">
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="w-5 h-5 flex-shrink-0 rounded-full text-xs font-bold flex items-center justify-center" :class="i < 3 ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'">{{ i + 1 }}</span>
+                <div class="min-w-0">
+                  <span class="text-sm font-medium text-gray-900 truncate block">{{ item.product_name }}</span>
+                  <span v-if="item.specification" class="text-xs text-gray-400 truncate block">{{ item.specification }}</span>
+                </div>
+              </div>
+              <span class="text-sm font-semibold text-gray-900 flex-shrink-0">¥{{ item.total_amount.toLocaleString() }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -213,7 +259,8 @@ import {
   fetchInventoryByCategory,
   fetchInventoryTurnoverRate,
   fetchRecentOrders,
-  fetchSalesSummary
+  fetchSalesSummary,
+  fetchHotProducts
 } from '@/api/reports'
 
 const loading = ref(true)
@@ -230,6 +277,8 @@ const pendingSO = ref(0)
 const trendData = ref<any[]>([])
 const inventoryByCategory = ref<any[]>([])
 const recentOrders = ref<any[]>([])
+const hotByQuantity = ref<Array<{ product_name: string; total_quantity: number; specification: string | null }>>([])
+const hotByRevenue = ref<Array<{ product_name: string; total_amount: number; specification: string | null }>>([])
 
 // ECharts container refs
 const trendRef = ref<HTMLDivElement>()
@@ -469,13 +518,14 @@ async function loadData() {
     const { dateFrom, dateTo } = getPeriodRange()
     const [
       kpiRes, trendRes,
-      inventoryRes, turnoverRes, ordersRes
+      inventoryRes, turnoverRes, ordersRes, hotRes
     ] = await Promise.all([
       fetchDashboardKPIs({ date_from: dateFrom, date_to: dateTo }),
       fetchTrendData(dateFrom, dateTo),
       fetchInventoryByCategory(),
       fetchInventoryTurnoverRate({ date_from: dateFrom, date_to: dateTo }),
-      fetchRecentOrders(8, { date_from: dateFrom, date_to: dateTo })
+      fetchRecentOrders(8, { date_from: dateFrom, date_to: dateTo }),
+      fetchHotProducts({ date_from: dateFrom, date_to: dateTo })
     ])
 
     if (kpiRes.data) {
@@ -498,6 +548,11 @@ async function loadData() {
     }
 
     recentOrders.value = ordersRes.data ?? []
+
+    if (hotRes.data) {
+      hotByQuantity.value = hotRes.data.by_quantity
+      hotByRevenue.value = hotRes.data.by_revenue
+    }
 
     await nextTick()
     renderAllCharts()

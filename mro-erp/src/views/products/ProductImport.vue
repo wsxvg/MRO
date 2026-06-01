@@ -127,10 +127,10 @@ const parseError = ref<string | null>(null)
 const saving = ref(false)
 const currentFileName = ref('')
 const isDragging = ref(false)
-let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null
+let xlsxModulePromise: Promise<typeof import('xlsx-js-style')> | null = null
 
 async function getXLSX() {
-  xlsxModulePromise ||= import('xlsx')
+  xlsxModulePromise ||= import('xlsx-js-style')
   return xlsxModulePromise
 }
 

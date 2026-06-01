@@ -47,7 +47,12 @@
           <h2 class="text-lg font-semibold text-gray-900">单据信息</h2>
           <div>
             <label class="label">客户 <span class="text-red-500">*</span></label>
-            <SearchableSelect :options="customerOptions" v-model="form.customer_id" placeholder="请选择客户" />
+            <SearchableSelect :options="customerOptions" v-model="form.customer_id" placeholder="请选择客户" @update:modelValue="onCustomerChange" />
+          </div>
+          <div>
+            <label class="label">关联销售单</label>
+            <SearchableSelect :options="salesOrderOptions" v-model="form.sales_order_id" placeholder="选择关联销售单（可选）" />
+            <p v-if="form.sales_order_id" class="text-xs text-gray-400 mt-1">退货完成后将自动冲抵该销售单的已收金额</p>
           </div>
           <div>
             <label class="label">仓库 <span class="text-red-500">*</span></label>
@@ -77,7 +82,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchSalesReturn, createSalesReturn, completeSalesReturn, fetchSalesReturnItems, saveSalesReturnItems } from '@/api'
+import { fetchSalesReturn, createSalesReturn, completeSalesReturn, fetchSalesReturnItems, saveSalesReturnItems, fetchSalesOrders } from '@/api'
 import { fetchCustomers } from '@/api'
 import { fetchWarehouses } from '@/api'
 import { fetchProducts } from '@/api'
@@ -90,8 +95,13 @@ const customers = ref<Customer[]>([])
 const warehouses = ref<Warehouse[]>([])
 const products = ref<Product[]>([])
 
-const form = reactive({ customer_id: null as number | null, warehouse_id: null as number | null, remark: '' })
+const form = reactive({ customer_id: null as number | null, warehouse_id: null as number | null, sales_order_id: null as number | null, remark: '' })
 const items = reactive<{ product_id: number | null; quantity: number; unit_price: number; line_total: number }[]>([])
+const salesOrders = ref<Array<{ id: number; order_no: string; total_amount: number }>>([])
+
+const salesOrderOptions = computed(() =>
+  salesOrders.value.map(o => ({ value: o.id, label: `${o.order_no} (¥${o.total_amount.toFixed(2)})` }))
+)
 
 const total = computed(() => items.reduce((s, i) => s + (i.line_total || 0), 0))
 
@@ -108,6 +118,15 @@ const warehouseOptions = computed(() =>
 function addRow() { items.push({ product_id: null, quantity: 1, unit_price: 0, line_total: 0 }) }
 function calcLine(idx: number) { items[idx].line_total = (items[idx].quantity || 0) * (items[idx].unit_price || 0) }
 
+async function onCustomerChange(val: string | number | null) {
+  form.customer_id = val as number | null
+  form.sales_order_id = null
+  salesOrders.value = []
+  if (!val) return
+  const res = await fetchSalesOrders({ customer_id: val as number, status: 'completed', limit: 50 })
+  salesOrders.value = (res.data ?? []).map(o => ({ id: o.id, order_no: o.order_no, total_amount: o.total_amount }))
+}
+
 async function loadForm() {
   if (!isEdit) return
   const id = Number(route.params.id)
@@ -115,7 +134,11 @@ async function loadForm() {
   if (orderRes.data) {
     form.customer_id = orderRes.data.customer_id
     form.warehouse_id = orderRes.data.warehouse_id
+    form.sales_order_id = (orderRes.data as any).sales_order_id || null
     form.remark = orderRes.data.remark || ''
+    if (orderRes.data.customer_id) {
+      await onCustomerChange(orderRes.data.customer_id)
+    }
   }
   if (itemRes.data) {
     itemRes.data.forEach(i => items.push({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price, line_total: i.line_total }))
@@ -128,7 +151,7 @@ async function saveAndComplete() { await handleSubmit('completed') }
 async function handleSubmit(status: string) {
   saving.value = true; error.value = ''
   try {
-    const data = { customer_id: form.customer_id!, warehouse_id: form.warehouse_id!, total_amount: total.value, remark: form.remark || null, status } as any
+    const data = { customer_id: form.customer_id!, warehouse_id: form.warehouse_id!, sales_order_id: form.sales_order_id || null, total_amount: total.value, remark: form.remark || null, status } as any
     const orderRes = await createSalesReturn(data)
     if (!orderRes.data) { error.value = orderRes.error || '保存失败'; return }
     const orderId = orderRes.data.id

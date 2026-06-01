@@ -19,7 +19,6 @@
         <table class="w-full">
           <thead>
             <tr class="text-left text-sm text-gray-500 border-b border-gray-200">
-              <th class="pb-3 font-medium">SKU</th>
               <th class="pb-3 font-medium">商品名称</th>
               <th class="pb-3 font-medium text-right">参考售价</th>
               <th class="pb-3 font-medium text-right">专属价格</th>
@@ -28,7 +27,6 @@
           </thead>
           <tbody>
             <tr v-for="(item, idx) in prices" :key="item.product_id" class="border-b border-gray-100 hover:bg-gray-50">
-              <td class="py-3 text-sm text-gray-600">{{ item.product_sku || '-' }}</td>
               <td class="py-3 text-sm font-medium text-gray-900">{{ item.product_name }}</td>
               <td class="py-3 text-sm text-gray-900 text-right">¥{{ (item.reference_price || 0).toFixed(2) }}</td>
               <td class="py-3 text-right">
@@ -47,7 +45,7 @@
         <div class="flex gap-2">
           <select v-model="newProductId" class="input">
             <option value="">请选择商品</option>
-            <option v-for="p in availableProducts" :key="p.id" :value="p.id">{{ p.name }} ({{ p.sku }})</option>
+            <option v-for="p in availableProducts" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
           <button class="btn-secondary" :disabled="!newProductId" @click="addProduct">添加</button>
         </div>
@@ -112,7 +110,6 @@ function addProduct() {
     product_id: prod.id,
     price: 0,
     product_name: prod.name,
-    product_sku: prod.sku || '',
     reference_price: prod.reference_price
   })
   newProductId.value = null

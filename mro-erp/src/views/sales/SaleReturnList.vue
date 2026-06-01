@@ -14,7 +14,7 @@
       @filter-change="onFilterChange"
     />
 
-    <div v-if="loading" class="text-center py-12 text-gray-500">加载中...</div>
+    <TableSkeleton v-if="loading" />
     <BaseCard v-else>
       <BaseTable
         :columns="columns"
@@ -49,6 +49,7 @@ import BaseCard from '@/components/BaseCard.vue'
 import BaseTable from '@/components/BaseTable.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import TableSkeleton from '@/components/TableSkeleton.vue'
 
 const columns = [
   { key: 'order_no', label: '单号' },

@@ -26,7 +26,7 @@
         <button class="btn-secondary text-sm" @click="confirmBatchStockIn">批量入库</button>
     </div>
 
-    <div v-if="loading" class="text-center py-12 text-gray-500">加载中...</div>
+    <TableSkeleton v-if="loading" :show-search="true" />
     <div v-else-if="error" class="bg-white rounded-xl border border-gray-100 text-center py-12">
       <p class="text-red-500 mb-4">{{ error }}</p>
       <button class="btn-primary" @click="fetchData">重试</button>
@@ -170,7 +170,6 @@ import { useDebounceFn } from '@/composables/useDebounce'
 import { highlightText } from '@/lib/utils'
 import { productsApi, categoriesApi, createStockIn, batchCreateStockIn, fetchWarehouses } from '@/api'
 import type { Product, Category, Warehouse } from '@/types'
-import * as XLSX from 'xlsx'
 import { useRouter } from 'vue-router'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import BasePageHeader from '@/components/BasePageHeader.vue'
@@ -180,6 +179,7 @@ import FilterBar from '@/components/FilterBar.vue'
 
 import BaseModal from '@/components/BaseModal.vue'
 import BasePagination from '@/components/BasePagination.vue'
+import TableSkeleton from '@/components/TableSkeleton.vue'
 import ProductForm from './ProductForm.vue'
 
 const columns = [
@@ -326,6 +326,7 @@ async function exportProducts() {
     error.value = result.error || '导出失败'
     return
   }
+  const XLSX = await import('xlsx-js-style')
   const ws = XLSX.utils.json_to_sheet(result.data)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, '商品')

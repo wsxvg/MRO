@@ -107,9 +107,20 @@
         </div>
 
         <!-- Payment records (edit only) -->
-        <div v-if="isEdit && (formData.paid_amount ?? 0) > 0" class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
-          <h3 class="text-sm font-semibold text-gray-900">收款记录</h3>
-          <div class="flex items-center justify-between py-2 px-3 bg-green-50 rounded-lg">
+        <div v-if="isEdit && (formData.paid_amount ?? 0) !== 0" class="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
+          <h3 class="text-sm font-semibold text-gray-900">收付款记录</h3>
+          <div v-for="rec in paymentRecords" :key="rec.id" class="flex items-center justify-between py-2 px-3 rounded-lg" :class="rec.type === 'refund' ? 'bg-red-50' : 'bg-green-50'">
+            <div>
+              <span class="text-sm" :class="rec.type === 'refund' ? 'text-red-600' : 'text-gray-600'">
+                {{ rec.type === 'refund' ? '退货冲抵' : '收款' }}
+              </span>
+              <span v-if="rec.remark" class="text-xs text-gray-400 ml-2">{{ rec.remark }}</span>
+            </div>
+            <span class="text-sm font-semibold" :class="rec.type === 'refund' ? 'text-red-600' : 'text-green-600'">
+              {{ rec.type === 'refund' ? '' : '+' }}¥{{ rec.amount.toFixed(2) }}
+            </span>
+          </div>
+          <div v-if="paymentRecords.length === 0" class="flex items-center justify-between py-2 px-3 bg-green-50 rounded-lg">
             <span class="text-sm text-gray-600">已收款</span>
             <span class="text-sm font-semibold text-green-600">¥{{ (formData.paid_amount || 0).toFixed(2) }}</span>
           </div>
@@ -143,11 +154,11 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchSalesOrder, createSalesOrder, updateSalesOrder, completeSalesOrder, fetchSalesOrderItems, saveSalesOrderItems } from '@/api'
+import { fetchSalesOrder, createSalesOrder, updateSalesOrder, completeSalesOrder, fetchSalesOrderItems, saveSalesOrderItems, fetchPaymentRecords } from '@/api'
 import { fetchCustomers } from '@/api'
 import { fetchWarehouses } from '@/api'
 import { fetchProducts } from '@/api'
-import type { Customer, Warehouse, Product, SalesOrder } from '@/types'
+import type { Customer, Warehouse, Product, SalesOrder, PaymentRecord } from '@/types'
 
 const route = useRoute(); const router = useRouter()
 const isEdit = !!route.params.id
@@ -156,6 +167,7 @@ const customers = ref<Customer[]>([])
 const warehouses = ref<Warehouse[]>([])
 const products = ref<Product[]>([])
 const formData = reactive<Partial<SalesOrder>>({})
+const paymentRecords = ref<PaymentRecord[]>([])
 
 const form = reactive({ customer_id: null as number | null, warehouse_id: null as number | null, remark: '' })
 const items = reactive<{ product_id: number | null; quantity: number; unit_price: number; cost_price: number; line_total: number }[]>([])
@@ -191,7 +203,11 @@ function onProductSelect(idx: number, val: string | number | null) {
 async function loadForm() {
   if (!isEdit) return
   const id = Number(route.params.id)
-  const [orderRes, itemRes] = await Promise.all([fetchSalesOrder(id), fetchSalesOrderItems(id)])
+  const [orderRes, itemRes, payRes] = await Promise.all([
+    fetchSalesOrder(id),
+    fetchSalesOrderItems(id),
+    fetchPaymentRecords(id)
+  ])
   if (orderRes.data) {
     Object.assign(formData, orderRes.data)
     form.customer_id = orderRes.data.customer_id
@@ -206,6 +222,9 @@ async function loadForm() {
       cost_price: i.cost_price,
       line_total: i.line_total
     }))
+  }
+  if (payRes.data) {
+    paymentRecords.value = payRes.data
   }
 }
 

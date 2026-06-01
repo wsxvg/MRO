@@ -10,7 +10,7 @@
             v-model="search"
             type="text"
             class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
-            placeholder="搜索商品名称/SKU..."
+            placeholder="搜索商品名称..."
             @input="onSearch"
           />
         </div>

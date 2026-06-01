@@ -27,11 +27,12 @@
       </div>
 
       <!-- Nav items -->
-      <nav :class="['flex-1 overflow-y-auto py-4', sidebarCollapsed ? 'flex flex-col items-center space-y-1 px-1.5' : 'px-3 space-y-1']">
+      <nav aria-label="主导航" :class="['flex-1 overflow-y-auto py-4', sidebarCollapsed ? 'flex flex-col items-center space-y-1 px-1.5' : 'px-3 space-y-1']">
         <button
           v-for="item in navItems"
           :key="item.path"
           :title="sidebarCollapsed ? item.label : ''"
+          :aria-current="isActive(item.path) ? 'page' : undefined"
           :class="[
             sidebarCollapsed
               ? 'w-10 h-10 flex items-center justify-center rounded-xl transition-colors mx-auto'
@@ -42,7 +43,24 @@
           ]"
           @click="navigate(item.path)"
         >
-          <span v-html="item.icon" class="w-5 h-5 flex-shrink-0" />
+          <svg class="w-5 h-5 flex-shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <template v-if="item.icon === 'home'">
+              <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </template>
+            <template v-else-if="item.icon === 'cube'">
+              <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </template>
+            <template v-else-if="item.icon === 'users'">
+              <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </template>
+            <template v-else-if="item.icon === 'receipt'">
+              <path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+            </template>
+            <template v-else-if="item.icon === 'gear'">
+              <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <circle cx="12" cy="12" r="3" />
+            </template>
+          </svg>
           <span v-show="!sidebarCollapsed" class="text-sm">{{ item.label }}</span>
         </button>
 
@@ -98,6 +116,7 @@
           <button
             v-for="item in navItems"
             :key="item.path"
+            :aria-current="isActive(item.path) ? 'page' : undefined"
             :class="[
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors',
               isActive(item.path)
@@ -106,7 +125,24 @@
             ]"
             @click="navigate(item.path)"
           >
-            <span v-html="item.icon" class="w-5 h-5 flex-shrink-0" />
+            <svg class="w-5 h-5 flex-shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <template v-if="item.icon === 'home'">
+                <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </template>
+              <template v-else-if="item.icon === 'cube'">
+                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </template>
+              <template v-else-if="item.icon === 'users'">
+                <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </template>
+              <template v-else-if="item.icon === 'receipt'">
+                <path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+              </template>
+              <template v-else-if="item.icon === 'gear'">
+                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <circle cx="12" cy="12" r="3" />
+              </template>
+            </svg>
             <span>{{ item.label }}</span>
           </button>
 
@@ -122,7 +158,9 @@
               <span class="text-sm text-gray-700">管理员</span>
             </div>
             <button class="text-gray-400 hover:text-red-500 transition-colors" @click="handleLogout" title="退出登录">
-              <i class="ri-logout-box-line text-lg"></i>
+              <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
             </button>
           </div>
         </div>
@@ -134,14 +172,18 @@
       <!-- Header -->
         <header class="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-gray-200/80 px-4 lg:px-6 h-14 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <button class="lg:hidden w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100" @click="sidebarOpen = true">
-            <i class="ri-menu-line text-lg"></i>
+          <button class="lg:hidden w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100" @click="sidebarOpen = true" aria-label="打开菜单">
+            <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
           </button>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-sm text-gray-400 hidden sm:block">{{ currentTime }}</span>
-          <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-xl hover:bg-gray-100 transition-colors" @click="handleLogout" title="退出登录">
-            <i class="ri-logout-box-line text-lg"></i>
+          <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-xl hover:bg-gray-100 transition-colors" @click="handleLogout" title="退出登录" aria-label="退出登录">
+            <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
           </button>
         </div>
       </header>
@@ -179,31 +221,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  {
-    label: '仪表板',
-    path: '/dashboard',
-    icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>'
-  },
-  {
-    label: '商品管理',
-    path: '/products',
-    icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>'
-  },
-  {
-    label: '客户管理',
-    path: '/customers',
-    icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>'
-  },
-  {
-    label: '销售管理',
-    path: '/sales',
-    icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>'
-  },
-  {
-    label: '系统设置',
-    path: '/settings/warehouses',
-    icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>'
-  },
+  { label: '仪表板', path: '/dashboard', icon: 'home' },
+  { label: '商品管理', path: '/products', icon: 'cube' },
+  { label: '客户管理', path: '/customers', icon: 'users' },
+  { label: '销售管理', path: '/sales', icon: 'receipt' },
+  { label: '系统设置', path: '/settings/warehouses', icon: 'gear' },
 ]
 
 function isActive(path: string): boolean {

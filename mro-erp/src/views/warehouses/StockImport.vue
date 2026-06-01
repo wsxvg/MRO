@@ -41,14 +41,12 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-gray-500 border-b">
-                <th class="pb-2 font-medium">商品条码</th>
                 <th class="pb-2 font-medium">商品名称</th>
                 <th class="pb-2 font-medium text-right">数量</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(row, i) in preview" :key="i" class="border-b border-gray-100">
-                <td class="py-2">{{ row.sku }}</td>
                 <td class="py-2">{{ row.name }}</td>
                 <td class="py-2 text-right">{{ row.quantity }}</td>
               </tr>
@@ -92,14 +90,14 @@ function handleFile(e: Event) {
   const input = e.target as HTMLInputElement
   if (input.files?.length) {
     preview.value = [
-      { sku: 'DEMO-001', name: '示例商品', quantity: 100 },
-      { sku: 'DEMO-002', name: '示例商品二', quantity: 50 }
+      { name: '示例商品', quantity: 100 },
+      { name: '示例商品二', quantity: 50 }
     ]
   }
 }
 
 function downloadTemplate() {
-  const blob = new Blob(['SKU,数量'], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['商品名称,数量'], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url; a.download = '库存导入模板.csv'; a.click()

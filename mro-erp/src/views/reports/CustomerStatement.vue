@@ -22,6 +22,7 @@
         </div>
         <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors" @click="fetchData">查询</button>
         <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" @click="resetFilters">重置</button>
+        <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors" @click="exportExcel">导出 Excel</button>
       </div>
     </div>
 
@@ -133,4 +134,176 @@ onMounted(async () => {
   if (cRes.data) customers.value = cRes.data
   fetchData()
 })
+
+// 对账项目配色
+const STYLE = {
+  headerBg: { fill: { fgColor: { rgb: '1F4E79' } }, font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, border: thinBorder() },
+  subtotalBg: { fill: { fgColor: { rgb: 'FFF3E0' } }, font: { bold: true, sz: 10 }, border: thinBorder() },
+  totalBg: { fill: { fgColor: { rgb: '1F4E79' } }, font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 }, alignment: { horizontal: 'right', vertical: 'center' }, border: thinBorder() },
+  dataRow: { font: { sz: 10 }, border: thinBorder(), alignment: { vertical: 'center' } },
+  amountRed: { font: { bold: true, color: { rgb: 'C00000' }, sz: 10 }, alignment: { horizontal: 'center', vertical: 'center' }, border: thinBorder() },
+  amountNormal: { font: { sz: 10 }, alignment: { horizontal: 'center', vertical: 'center' }, border: thinBorder() },
+  titleStyle: { font: { bold: true, sz: 16, color: { rgb: '333333' } }, alignment: { horizontal: 'center', vertical: 'center' } },
+}
+
+function thinBorder() {
+  return {
+    top: { style: 'thin', color: { rgb: 'D0D0D0' } },
+    bottom: { style: 'thin', color: { rgb: 'D0D0D0' } },
+    left: { style: 'thin', color: { rgb: 'D0D0D0' } },
+    right: { style: 'thin', color: { rgb: 'D0D0D0' } },
+  }
+}
+
+function cellStyle(base: Record<string, any>, overrides?: Record<string, any>) {
+  return { ...base, ...overrides }
+}
+
+async function exportExcel() {
+  if (list.value.length === 0) return
+
+  const XLSX = await import('xlsx-js-style')
+  const wb = XLSX.utils.book_new()
+
+  // 按客户分组
+  const grouped = new Map<string, typeof list.value>()
+  for (const order of list.value) {
+    const name = order.customer_name || '未指定客户'
+    if (!grouped.has(name)) grouped.set(name, [])
+    grouped.get(name)!.push(order)
+  }
+
+  const custName = customerId.value ? (customers.value.find(c => c.id === customerId.value)?.name || '全部') : '全部客户'
+  const dateLabel = `${dateFrom.value || '全部'} 至 ${dateTo.value || '全部'}`
+
+  for (const [customerName, orders] of grouped) {
+    const rows: any[][] = []
+    const merges: any[] = []
+    const styles: Record<string, Record<string, any>> = {}
+    let rowIdx = 0
+
+    // Title
+    rows.push([`${custName} 对账单`])
+    styles[`${rowIdx},0`] = STYLE.titleStyle
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } })
+    rowIdx++
+
+    // Date range
+    rows.push([`日期范围: ${dateLabel}`])
+    styles[`${rowIdx},0`] = { font: { sz: 10, color: { rgb: '666666' } }, alignment: { horizontal: 'center' } }
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 7 } })
+    rowIdx++
+
+    // Empty row
+    rows.push([])
+    rowIdx++
+
+    // Section header: 送货明细
+    rows.push(['送货明细'])
+    styles[`${rowIdx},0`] = { font: { bold: true, sz: 12, color: { rgb: '1F4E79' } } }
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 7 } })
+    rowIdx++
+
+    // Table header
+    const headers = ['序号', '日期', '单号', '客户', '数量', '单价', '销售金额', '已收款']
+    rows.push(headers)
+    for (let c = 0; c < headers.length; c++) {
+      styles[`${rowIdx},${c}`] = STYLE.headerBg
+    }
+    rowIdx++
+
+    // Data rows
+    let totalSales = 0
+    let totalPaid = 0
+    orders.forEach((order, i) => {
+      const sales = order.total_amount || 0
+      const paid = order.paid_amount || 0
+      totalSales += sales
+      totalPaid += paid
+      rows.push([
+        i + 1,
+        order.created_at?.slice(0, 10) || '',
+        order.order_no,
+        order.customer_name || '-',
+        '',
+        '',
+        sales,
+        paid,
+      ])
+      for (let c = 0; c < 8; c++) {
+        if (c === 6 || c === 7) {
+          styles[`${rowIdx},${c}`] = cellStyle(STYLE.amountNormal, { numFmt: '¥#,##0.00' })
+        } else {
+          styles[`${rowIdx},${c}`] = c <= 3 ? cellStyle(STYLE.dataRow, { alignment: { horizontal: 'center', vertical: 'center' } }) : STYLE.dataRow
+        }
+      }
+      rowIdx++
+    })
+
+    // Subtotal row
+    rows.push(['', '', '', '小计:', '', '', totalSales, totalPaid])
+    for (let c = 0; c < 8; c++) {
+      if (c === 6 || c === 7) {
+        styles[`${rowIdx},${c}`] = cellStyle(STYLE.subtotalBg, { font: { bold: true, color: { rgb: 'C00000' }, sz: 10 }, numFmt: '¥#,##0.00', alignment: { horizontal: 'center', vertical: 'center' } })
+      } else if (c === 3) {
+        styles[`${rowIdx},${c}`] = cellStyle(STYLE.subtotalBg, { alignment: { horizontal: 'right', vertical: 'center' } })
+      } else {
+        styles[`${rowIdx},${c}`] = STYLE.subtotalBg
+      }
+    }
+    rowIdx++
+
+    // Empty row
+    rows.push([])
+    rowIdx++
+
+    // Total row
+    const due = totalSales - totalPaid
+    rows.push(['', '', '', '', '', '合计:', totalSales, due])
+    for (let c = 0; c < 8; c++) {
+      if (c === 5) {
+        styles[`${rowIdx},${c}`] = STYLE.totalBg
+      } else if (c === 6 || c === 7) {
+        styles[`${rowIdx},${c}`] = cellStyle({ fill: { fgColor: { rgb: '1F4E79' } }, font: { bold: true, color: { rgb: 'C00000' }, sz: 12 }, alignment: { horizontal: 'center', vertical: 'center' }, border: thinBorder() }, { numFmt: '¥#,##0.00' })
+      } else {
+        styles[`${rowIdx},${c}`] = STYLE.headerBg
+      }
+    }
+    rowIdx++
+
+    // 实付金额 row
+    rows.push(['', '', '', '', '', '实付金额:', totalSales, ''])
+    for (let c = 0; c < 8; c++) {
+      if (c === 5) {
+        styles[`${rowIdx},${c}`] = STYLE.totalBg
+      } else if (c === 6) {
+        styles[`${rowIdx},${c}`] = cellStyle({ fill: { fgColor: { rgb: '1F4E79' } }, font: { bold: true, color: { rgb: 'C00000' }, sz: 12 }, alignment: { horizontal: 'center', vertical: 'center' }, border: thinBorder() }, { numFmt: '¥#,##0.00' })
+      } else {
+        styles[`${rowIdx},${c}`] = STYLE.headerBg
+      }
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    ws['!merges'] = merges
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 12 }, { wch: 18 }, { wch: 12 },
+      { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }
+    ]
+    ws['!rows'] = Array(rowIdx + 1).fill({ hpt: 22 })
+    ws['!rows'][0] = { hpt: 35 }
+
+    // Apply styles
+    for (const [key, style] of Object.entries(styles)) {
+      const [r, c] = key.split(',').map(Number)
+      const cellRef = XLSX.utils.encode_cell({ r, c })
+      if (ws[cellRef]) ws[cellRef].s = style
+    }
+
+    const sheetName = customerName.length > 31 ? customerName.slice(0, 31) : customerName
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  }
+
+  const fileName = `客户对账单_${new Date().toISOString().slice(0, 10)}.xlsx`
+  XLSX.writeFile(wb, fileName)
+}
 </script>

@@ -92,7 +92,7 @@
             <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <input v-model="searchQuery" placeholder="搜索商品名称 / SKU..." class="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" @input="debouncedSearch" />
+            <input v-model="searchQuery" placeholder="搜索商品名称..." class="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent" @input="debouncedSearch" />
           </div>
         </div>
 
@@ -119,7 +119,7 @@
           <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             <div v-for="p in displayProducts" :key="p.id" class="group relative bg-white border border-gray-200/80 rounded-2xl p-3 cursor-pointer hover:border-gray-900 hover:shadow-sm transition-all" @click="selectProduct(p)" @mouseenter="showStock(p.id)" @mouseleave="hoveredProductId = null">
               <div class="text-sm font-medium text-gray-900 truncate group-hover:text-gray-900">{{ p.name }}</div>
-              <div class="text-xs text-gray-400 mt-0.5 truncate">{{ p.sku || '' }} {{ p.specification || '' }}</div>
+              <div class="text-xs text-gray-400 mt-0.5 truncate">{{ p.specification || '' }}</div>
               <div class="flex items-center justify-between mt-2">
                 <span class="text-sm font-semibold text-gray-900">¥{{ (p.reference_price || 0).toFixed(1) }}</span>
                 <span class="text-[10px] text-gray-500">库存:{{ p.stock_quantity ?? '-' }}</span>

@@ -29,7 +29,7 @@
       <button class="btn-secondary text-sm border-red-300 text-red-600 hover:bg-red-50" @click="confirmBatchDelete">批量删除</button>
     </div>
 
-    <div v-if="loading" class="text-center py-12 text-gray-500">加载中...</div>
+    <TableSkeleton v-if="loading" :show-search="true" />
     <div v-else-if="error" class="bg-white rounded-xl border border-gray-100 text-center py-12">
       <p class="text-red-500 mb-4">{{ error }}</p>
       <button class="btn-primary" @click="fetchData">重试</button>
@@ -48,12 +48,8 @@
           </template>
           <template v-else-if="column.key === 'actions'">
             <router-link :to="`/customers/${row.id}/pricing`" class="text-primary-600 hover:text-primary-700 text-sm mr-3">价格</router-link>
-             <router-link :to="`/customers/${row.id}`" class="btn-icon text-gray-500 hover:text-primary-600" title="编辑">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              </router-link>
-              <button class="btn-icon-danger" title="删除" @click="confirmDelete(row)">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
+            <router-link :to="`/customers/${row.id}`" class="text-primary-600 hover:text-primary-700 text-sm mr-3">编辑</router-link>
+            <button class="text-red-600 hover:text-red-700 text-sm" @click="confirmDelete(row)">删除</button>
           </template>
           <template v-else-if="column.key === 'credit_limit'">
             ¥{{ (row.credit_limit || 0).toFixed(2) }}
@@ -108,6 +104,7 @@ import BaseCard from '@/components/BaseCard.vue'
 import BaseTable from '@/components/BaseTable.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import BasePagination from '@/components/BasePagination.vue'
+import TableSkeleton from '@/components/TableSkeleton.vue'
 import CustomerForm from '@/views/customers/CustomerForm.vue'
 
 const columns = [

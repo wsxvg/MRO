@@ -44,7 +44,6 @@ export interface Product {
   id: number
   category_id: number | null
   name: string
-  sku?: string | null
   specification: string | null
   unit: string
   reference_price: number
@@ -81,7 +80,6 @@ export interface CustomerPrice {
   price: number
   // Joined fields
   product_name?: string
-  product_sku?: string
   reference_price?: number
 }
 
@@ -153,8 +151,10 @@ export interface SalesOrderItem {
 export interface PaymentRecord {
   id: number
   sales_order_id: number
+  return_order_id?: number | null
   amount: number
   payment_method: PaymentMethod
+  type: 'payment' | 'refund'
   paid_at: string
   remark: string | null
   created_at: string
@@ -166,6 +166,7 @@ export interface SalesReturnOrder {
   order_no: string
   customer_id: number
   warehouse_id: number
+  sales_order_id?: number | null
   status: OrderStatus
   total_amount: number
   remark: string | null

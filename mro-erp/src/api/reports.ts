@@ -372,3 +372,49 @@ export async function fetchRecentOrders(
 
   return { data: mapped, count: mapped.length, error: error?.message ?? null }
 }
+
+// ====== Hot Products (Top 10 by quantity and revenue) ======
+export async function fetchHotProducts(params?: {
+  date_from?: string
+  date_to?: string
+}): Promise<ApiResult<{
+  by_quantity: Array<{ product_name: string; total_quantity: number; specification: string | null }>
+  by_revenue: Array<{ product_name: string; total_amount: number; specification: string | null }>
+}>> {
+  let query = supabase
+    .from('sales_order_items')
+    .select('quantity, line_total, products!inner(name, specification), sales_orders!inner(created_at, status)')
+    .eq('sales_orders.status', 'completed')
+
+  if (params?.date_from) query = query.gte('sales_orders.created_at', params.date_from)
+  if (params?.date_to) query = query.lte('sales_orders.created_at', params.date_to)
+
+  const { data, error } = await query
+
+  if (error) return { data: null, error: error.message }
+
+  // Aggregate by product
+  const agg = new Map<number, { name: string; spec: string | null; qty: number; revenue: number }>()
+  for (const row of (data ?? []) as any[]) {
+    const pid = row.products?.name ?? 'unknown'
+    const key = pid
+    const entry = agg.get(key as any) ?? { name: pid, spec: row.products?.specification ?? null, qty: 0, revenue: 0 }
+    entry.qty += Number(row.quantity)
+    entry.revenue += Number(row.line_total)
+    agg.set(key as any, entry)
+  }
+
+  const all = Array.from(agg.values())
+
+  const byQuantity = all
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 10)
+    .map(p => ({ product_name: p.name, total_quantity: p.qty, specification: p.spec }))
+
+  const byRevenue = all
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10)
+    .map(p => ({ product_name: p.name, total_amount: p.revenue, specification: p.spec }))
+
+  return { data: { by_quantity: byQuantity, by_revenue: byRevenue }, error: null }
+}

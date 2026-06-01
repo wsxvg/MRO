@@ -71,7 +71,7 @@ export async function fetchCustomerPrices(
 ): Promise<ListResponse<CustomerPrice>> {
   const { data, error } = await supabase
     .from('customer_prices')
-    .select('*, products!left(name, sku, reference_price)')
+    .select('*, products!left(name, reference_price)')
     .eq('customer_id', customerId)
 
   const mapped = (data ?? []).map((p: any) => ({
@@ -79,7 +79,6 @@ export async function fetchCustomerPrices(
     product_id: p.product_id,
     price: p.price,
     product_name: p.products?.name ?? null,
-    product_sku: p.products?.sku ?? null,
     reference_price: p.products?.reference_price ?? null
   }))
 
