@@ -1,182 +1,455 @@
 <template>
   <div class="page-padding">
     <BasePageHeader title="销售管理">
-      <template v-if="activeTab === 'orders'">
-        <div class="flex gap-3">
-          <router-link to="/sales/quick" class="btn-secondary text-sm">快速销售</router-link>
-          <router-link to="/sales/new" class="btn-primary text-sm">新增销售单</router-link>
-        </div>
-      </template>
-      <router-link v-else to="/sales-returns/new" class="btn-primary text-sm">新增退货单</router-link>
+      <div class="flex gap-3">
+        <button class="btn-secondary text-sm" @click="showStatementDialog = true">导出对账单</button>
+        <router-link to="/sales/new" class="btn-secondary text-sm">新增销售单</router-link>
+        <router-link to="/sales/quick" class="btn-primary text-sm">快速收银</router-link>
+      </div>
     </BasePageHeader>
 
-    <!-- Tabs -->
-    <div role="tablist" class="flex gap-1 mb-4 border-b border-gray-200">
-      <button
-        v-for="tab in tabs" :key="tab.key"
-        role="tab"
-        :aria-selected="activeTab === tab.key"
-        :aria-controls="`tabpanel-${tab.key}`"
-        :id="`tab-${tab.key}`"
-        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px"
-        :class="activeTab === tab.key ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-        @click="activeTab = tab.key; switchTab()"
-      >{{ tab.label }}</button>
+    <!-- 待发货区域 -->
+    <div class="mb-6">
+      <div class="flex items-center gap-2 mb-3">
+        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        </svg>
+        <h2 class="text-base font-semibold text-gray-900">待发货</h2>
+        <span v-if="pendingOrders.length > 0" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+          {{ pendingOrders.length }}
+        </span>
+      </div>
+
+      <div v-if="pendingLoading" class="text-center py-8 text-gray-400">加载中...</div>
+
+      <div v-else-if="pendingOrders.length === 0" class="bg-white rounded-xl border border-gray-100 p-6 text-center text-gray-400 text-sm">
+        暂无待发货订单
+      </div>
+
+      <div v-else class="space-y-2">
+        <div v-for="order in pendingOrders" :key="order.id"
+          class="bg-white rounded-xl border border-gray-100 p-4 hover:border-amber-200 transition-colors">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-gray-900">{{ order.customer_name || '零售客户' }}</span>
+                <span class="text-xs text-gray-400">{{ order.order_no }}</span>
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                {{ formatDate(order.created_at) }} · {{ order.warehouse_name || '-' }}
+              </div>
+              <div v-if="order.item_summary" class="text-xs text-gray-400 mt-1">
+                {{ order.item_summary }}
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <div class="text-lg font-bold text-gray-900">¥{{ (order.total_amount || 0).toFixed(2) }}</div>
+              <div class="flex gap-2 mt-2">
+                <button class="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  @click="handleDeliver(order.id)">
+                  标记已发货
+                </button>
+                <button class="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                  @click="viewOrder(order.id)">
+                  查看
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- 销售单 Tab -->
-    <div v-if="activeTab === 'orders'" role="tabpanel" id="tabpanel-orders" aria-labelledby="tab-orders">
-      <FilterBar
-        :filters="[{ key: 'status', label: '全部状态', value: statusFilter, options: [
-          { value: '', label: '全部状态' },
-          { value: 'draft', label: '草稿' },
-          { value: 'completed', label: '已完成' },
-          { value: 'cancelled', label: '已取消' }
-        ]}]"
-        @filter-change="onFilterChange"
-      />
-      <TableSkeleton v-if="loading" />
-      <BaseCard v-else>
-        <BaseTable
-          :columns="orderColumns"
-          :data="list"
-          empty-text="暂无销售单"
-        >
-          <template #cell="{ column, row }">
-            <template v-if="column.key === 'status'">
-              <StatusBadge :status="row.status" />
-            </template>
-            <template v-else-if="column.key === 'total_amount' || column.key === 'paid_amount'">
-              ¥{{ (row[column.key] || 0).toFixed(2) }}
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <router-link :to="`/sales/${row.id}`" class="text-primary-600 hover:text-primary-700 text-sm">查看</router-link>
-            </template>
-            <template v-else>
-              {{ row[column.key] ?? '-' }}
-            </template>
-          </template>
-        </BaseTable>
-      </BaseCard>
+    <!-- 最近销售 -->
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold text-gray-900">最近销售</h2>
+        <div class="flex items-center gap-2">
+          <select v-model="statusFilter" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white" @change="fetchCompleted">
+            <option value="">全部状态</option>
+            <option value="completed">已完成</option>
+            <option value="returned">已退货</option>
+          </select>
+        </div>
+      </div>
+
+      <div v-if="completedLoading" class="text-center py-8 text-gray-400">加载中...</div>
+
+      <div v-else-if="completedOrders.length === 0" class="bg-white rounded-xl border border-gray-100 p-6 text-center text-gray-400 text-sm">
+        暂无销售记录
+      </div>
+
+      <div v-else class="bg-white rounded-xl border border-gray-100">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b border-gray-100">
+              <th class="px-4 py-3 font-medium">单号</th>
+              <th class="px-4 py-3 font-medium">客户</th>
+              <th class="px-4 py-3 font-medium text-right">金额</th>
+              <th class="px-4 py-3 font-medium">状态</th>
+              <th class="px-4 py-3 font-medium">日期</th>
+              <th class="px-4 py-3 font-medium text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="order in completedOrders" :key="order.id" class="border-b border-gray-50 hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium text-gray-900">{{ order.order_no }}</td>
+              <td class="px-4 py-3 text-gray-600">{{ order.customer_name || '零售' }}</td>
+              <td class="px-4 py-3 text-right font-medium">¥{{ (order.total_amount || 0).toFixed(2) }}</td>
+              <td class="px-4 py-3">
+                <span v-if="order.status === 'completed'" class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">已完成</span>
+                <span v-else-if="order.status === 'returned'" class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">已退货</span>
+                <span v-else class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{{ order.status }}</span>
+              </td>
+              <td class="px-4 py-3 text-gray-500">{{ formatDate(order.created_at) }}</td>
+              <td class="px-4 py-3 text-right">
+                <button class="text-primary-600 hover:text-primary-700 text-xs mr-2" @click="viewOrder(order.id)">查看</button>
+                <button v-if="order.status === 'completed'" class="text-red-500 hover:text-red-600 text-xs mr-2" @click="openReturn(order)">退货</button>
+                <button v-if="order.status === 'completed' || order.status === 'returned'" class="text-amber-500 hover:text-amber-600 text-xs" @click="handleRevoke(order.id)">撤回</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <!-- 退货记录 Tab -->
-    <div v-else role="tabpanel" id="tabpanel-returns" aria-labelledby="tab-returns">
-      <FilterBar
-        :filters="[{ key: 'status', label: '全部状态', value: returnStatusFilter, options: [
-          { value: '', label: '全部状态' },
-          { value: 'draft', label: '草稿' },
-          { value: 'completed', label: '已完成' },
-          { value: 'cancelled', label: '已取消' }
-        ]}]"
-        @filter-change="onReturnFilterChange"
-      />
-      <TableSkeleton v-if="returnLoading" />
-      <BaseCard v-else>
-        <BaseTable
-          :columns="returnColumns"
-          :data="returnList"
-          empty-text="暂无退货单"
-        >
-          <template #cell="{ column, row }">
-            <template v-if="column.key === 'status'">
-              <StatusBadge :status="row.status" />
-            </template>
-            <template v-else-if="column.key === 'total_amount'">
-              ¥{{ (row.total_amount || 0).toFixed(2) }}
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <router-link :to="`/sales-returns/${row.id}`" class="text-primary-600 hover:text-primary-700 text-sm">查看</router-link>
-            </template>
-            <template v-else>
-              {{ row[column.key] ?? '-' }}
-            </template>
-          </template>
-        </BaseTable>
-      </BaseCard>
+    <!-- 订单详情弹窗 -->
+    <div v-if="detailVisible" class="fixed inset-0 bg-black/10 flex items-center justify-center z-50" @click.self="detailVisible = false">
+      <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">订单详情</h3>
+          <button class="text-gray-400 hover:text-gray-600" @click="detailVisible = false">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="detailLoading" class="text-center py-8 text-gray-400">加载中...</div>
+
+        <template v-else-if="detailOrder">
+          <div class="space-y-3 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-500">单号</span>
+              <span class="font-medium">{{ detailOrder.order_no }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">客户</span>
+              <span>{{ detailOrder.customer_name || '零售客户' }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">仓库</span>
+              <span>{{ detailOrder.warehouse_name || '-' }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">状态</span>
+              <span v-if="detailOrder.status === 'completed'" class="text-green-600">已完成</span>
+              <span v-else-if="detailOrder.status === 'pending'" class="text-amber-600">待发货</span>
+              <span v-else>{{ detailOrder.status }}</span>
+            </div>
+          </div>
+
+          <div class="mt-4 border-t border-gray-100 pt-4">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">商品明细</h4>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-gray-500 text-xs">
+                  <th class="pb-1">商品</th>
+                  <th class="pb-1 text-right">数量</th>
+                  <th class="pb-1 text-right">单价</th>
+                  <th class="pb-1 text-right">小计</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in detailItems" :key="item.id" class="border-t border-gray-50">
+                  <td class="py-1.5">{{ item.product_name }}</td>
+                  <td class="py-1.5 text-right">{{ item.quantity }}</td>
+                  <td class="py-1.5 text-right">¥{{ (item.unit_price || 0).toFixed(2) }}</td>
+                  <td class="py-1.5 text-right">¥{{ (item.line_total || 0).toFixed(2) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-4 flex justify-between text-sm font-semibold">
+            <span>合计</span>
+            <span>¥{{ (detailOrder.total_amount || 0).toFixed(2) }}</span>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- 退货弹窗 -->
+    <div v-if="returnVisible" class="fixed inset-0 bg-black/10 flex items-center justify-center z-50" @click.self="returnVisible = false">
+      <div class="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
+        <h3 class="text-lg font-semibold">退货</h3>
+        <div class="text-sm text-gray-600">
+          <p>订单：{{ returnOrder?.order_no }}</p>
+          <p>客户：{{ returnOrder?.customer_name || '零售' }}</p>
+        </div>
+
+        <div v-if="returnItems.length > 0" class="space-y-2">
+          <div v-for="item in returnItems" :key="item.id"
+            class="flex items-center justify-between py-2 border-b border-gray-50">
+            <div>
+              <span class="text-sm font-medium">{{ item.product_name }}</span>
+              <span class="text-xs text-gray-400 ml-1">×{{ item.quantity }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-gray-500">退货数量</label>
+              <input v-model.number="item.return_qty" type="number" min="0" :max="item.quantity"
+                class="w-16 text-center text-sm border border-gray-200 rounded py-1" />
+            </div>
+          </div>
+        </div>
+
+        <div v-if="returnError" class="text-sm text-red-600">{{ returnError }}</div>
+
+        <div class="flex gap-3 justify-end">
+          <button class="btn-secondary" @click="returnVisible = false">取消</button>
+          <button class="btn-primary" :disabled="returnSaving || !hasReturnItems" @click="handleReturn">
+            {{ returnSaving ? '处理中...' : '确认退货' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 对账单导出弹窗 -->
+    <div v-if="showStatementDialog" class="fixed inset-0 bg-black/10 flex items-center justify-center z-50" @click.self="showStatementDialog = false">
+      <div class="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
+        <h3 class="text-lg font-semibold">导出对账单</h3>
+        <div>
+          <label class="label">客户 <span class="text-red-500">*</span></label>
+          <select v-model="statementForm.customer_id" class="input">
+            <option :value="null">请选择客户</option>
+            <option v-for="c in allCustomers" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">开始日期</label>
+            <input v-model="statementForm.date_from" type="date" class="input" />
+          </div>
+          <div>
+            <label class="label">结束日期</label>
+            <input v-model="statementForm.date_to" type="date" class="input" />
+          </div>
+        </div>
+        <div v-if="statementError" class="text-sm text-red-600">{{ statementError }}</div>
+        <div class="flex gap-3 justify-end">
+          <button class="btn-secondary" @click="showStatementDialog = false">取消</button>
+          <button class="btn-primary" :disabled="!statementForm.customer_id || statementSaving" @click="handleExportStatement">
+            {{ statementSaving ? '导出中...' : '导出 Excel' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { fetchSalesOrders, fetchSalesReturns } from '@/api'
-import type { SalesOrder, SalesReturnOrder } from '@/types'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { fetchSalesOrders, fetchSalesOrderItems, completeSalesOrder, updateSalesOrder, createSalesReturn, saveSalesReturnItems, completeSalesReturn, reverseSalesOrder, fetchCustomers } from '@/api'
+import { fetchStatementData, exportStatementExcel } from '@/lib/statementExport'
+import type { SalesOrder, SalesOrderItem, Customer } from '@/types'
 import BasePageHeader from '@/components/BasePageHeader.vue'
-import BaseCard from '@/components/BaseCard.vue'
-import BaseTable from '@/components/BaseTable.vue'
-import FilterBar from '@/components/FilterBar.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
-import TableSkeleton from '@/components/TableSkeleton.vue'
 
-const tabs = [
-  { key: 'orders', label: '销售单' },
-  { key: 'returns', label: '退货记录' }
-] as const
-const activeTab = ref<'orders' | 'returns'>('orders')
+// Pending deliveries
+const pendingOrders = ref<(SalesOrder & { item_summary?: string })[]>([])
+const pendingLoading = ref(true)
 
-// Sales orders state
-const list = ref<SalesOrder[]>([])
-const loading = ref(true)
-const statusFilter = ref('draft')
+// Completed orders
+const completedOrders = ref<SalesOrder[]>([])
+const completedLoading = ref(true)
+const statusFilter = ref('')
 
-const orderColumns = [
-  { key: 'order_no', label: '单号' },
-  { key: 'customer_name', label: '客户' },
-  { key: 'warehouse_name', label: '仓库' },
-  { key: 'total_amount', label: '金额', align: 'right' as const },
-  { key: 'paid_amount', label: '已收款', align: 'right' as const },
-  { key: 'status', label: '状态' },
-  { key: 'created_at', label: '日期' },
-  { key: 'actions', label: '操作', align: 'right' as const }
-]
+// Order detail
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailOrder = ref<SalesOrder | null>(null)
+const detailItems = ref<SalesOrderItem[]>([])
 
-// Sales returns state
-const returnList = ref<SalesReturnOrder[]>([])
-const returnLoading = ref(false)
-const returnStatusFilter = ref('draft')
-let returnFetched = false
+// Return dialog
+const returnVisible = ref(false)
+const returnSaving = ref(false)
+const returnError = ref('')
+const returnOrder = ref<SalesOrder | null>(null)
+const returnItems = ref<(SalesOrderItem & { return_qty: number })[]>([])
+const hasReturnItems = computed(() => returnItems.value.some(i => i.return_qty > 0))
 
-const returnColumns = [
-  { key: 'order_no', label: '单号' },
-  { key: 'customer_name', label: '客户' },
-  { key: 'warehouse_name', label: '仓库' },
-  { key: 'total_amount', label: '金额', align: 'right' as const },
-  { key: 'status', label: '状态' },
-  { key: 'created_at', label: '日期' },
-  { key: 'actions', label: '操作', align: 'right' as const }
-]
+// Statement export
+const showStatementDialog = ref(false)
+const statementSaving = ref(false)
+const statementError = ref('')
+const allCustomers = ref<Customer[]>([])
+const statementForm = reactive({
+  customer_id: null as number | null,
+  date_from: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
+  date_to: new Date().toISOString().slice(0, 10),
+})
 
-function switchTab() {
-  if (activeTab.value === 'returns' && !returnFetched) {
-    fetchReturnData()
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+async function fetchPending() {
+  pendingLoading.value = true
+  const res = await fetchSalesOrders({ status: 'pending' })
+  if (res.data) {
+    // Fetch item summaries
+    const ordersWithSummary = await Promise.all(
+      res.data.map(async (order) => {
+        const itemsRes = await fetchSalesOrderItems(order.id)
+        const summary = (itemsRes.data ?? [])
+          .map((i: any) => `${i.product_name}×${i.quantity}`)
+          .join(', ')
+        return { ...order, item_summary: summary }
+      })
+    )
+    pendingOrders.value = ordersWithSummary
+  }
+  pendingLoading.value = false
+}
+
+async function fetchCompleted() {
+  completedLoading.value = true
+  const res = await fetchSalesOrders({
+    status: statusFilter.value || undefined,
+  })
+  // Filter out pending from completed list
+  completedOrders.value = (res.data ?? []).filter(o => o.status !== 'pending')
+  completedLoading.value = false
+}
+
+async function handleDeliver(orderId: number) {
+  const { error } = await completeSalesOrder(orderId)
+  if (!error) {
+    fetchPending()
+    fetchCompleted()
   }
 }
 
-function onFilterChange(payload: { key: string; value: string }) {
-  statusFilter.value = payload.value
-  fetchData()
+async function viewOrder(orderId: number) {
+  detailVisible.value = true
+  detailLoading.value = true
+  const orders = await fetchSalesOrders({})
+  detailOrder.value = (orders.data ?? []).find(o => o.id === orderId) ?? null
+  const itemsRes = await fetchSalesOrderItems(orderId)
+  detailItems.value = itemsRes.data ?? []
+  detailLoading.value = false
 }
 
-function onReturnFilterChange(payload: { key: string; value: string }) {
-  returnStatusFilter.value = payload.value
-  fetchReturnData()
+async function handleRevoke(orderId: number) {
+  if (!confirm('确定撤回此订单？库存将恢复。')) return
+  const { error } = await reverseSalesOrder(orderId)
+  if (!error) {
+    fetchPending()
+    fetchCompleted()
+  } else {
+    alert('撤回失败: ' + error)
+  }
 }
 
-async function fetchData() {
-  loading.value = true
-  const res = await fetchSalesOrders({ status: statusFilter.value || undefined })
-  if (res.data) list.value = res.data
-  loading.value = false
+async function openReturn(order: SalesOrder) {
+  returnOrder.value = order
+  returnError.value = ''
+  returnVisible.value = true
+
+  const itemsRes = await fetchSalesOrderItems(order.id)
+  returnItems.value = (itemsRes.data ?? []).map((item: any) => ({
+    ...item,
+    return_qty: 0,
+  }))
 }
 
-async function fetchReturnData() {
-  returnLoading.value = true
-  returnFetched = true
-  const res = await fetchSalesReturns({ status: returnStatusFilter.value || undefined })
-  if (res.data) returnList.value = res.data
-  returnLoading.value = false
+async function handleReturn() {
+  if (!returnOrder.value || !hasReturnItems.value) return
+  returnSaving.value = true
+  returnError.value = ''
+
+  const itemsToReturn = returnItems.value.filter(i => i.return_qty > 0)
+
+  // Create return order
+  const { data: returnData, error: createErr } = await createSalesReturn({
+    customer_id: returnOrder.value.customer_id,
+    warehouse_id: returnOrder.value.warehouse_id,
+    sales_order_id: returnOrder.value.id,
+    status: 'draft',
+    total_amount: itemsToReturn.reduce((sum, i) => sum + i.return_qty * i.unit_price, 0),
+    remark: null,
+  } as any)
+
+  if (createErr || !returnData) {
+    returnError.value = createErr || '创建退货单失败'
+    returnSaving.value = false
+    return
+  }
+
+  // Add return items
+  const { error: itemsErr } = await saveSalesReturnItems((returnData as any).id, itemsToReturn.map(i => ({
+    product_id: i.product_id,
+    quantity: i.return_qty,
+    unit_price: i.unit_price,
+  })))
+
+  if (itemsErr) {
+    returnError.value = itemsErr
+    returnSaving.value = false
+    return
+  }
+
+  // Complete return
+  const { error: completeErr } = await completeSalesReturn((returnData as any).id)
+  if (completeErr) {
+    returnError.value = completeErr
+    returnSaving.value = false
+    return
+  }
+
+  // Update original order status
+  await updateSalesOrder(returnOrder.value.id, { status: 'returned' as any })
+
+  returnVisible.value = false
+  returnSaving.value = false
+  fetchPending()
+  fetchCompleted()
 }
 
-onMounted(fetchData)
+async function handleExportStatement() {
+  if (!statementForm.customer_id) return
+  statementSaving.value = true
+  statementError.value = ''
+
+  const { data, error } = await fetchStatementData(
+    statementForm.customer_id,
+    statementForm.date_from,
+    statementForm.date_to
+  )
+
+  if (error || !data) {
+    statementError.value = error || '获取数据失败'
+    statementSaving.value = false
+    return
+  }
+
+  if (data.orders.length === 0) {
+    statementError.value = '该时间段内无订单记录'
+    statementSaving.value = false
+    return
+  }
+
+  await exportStatementExcel(data)
+  showStatementDialog.value = false
+  statementSaving.value = false
+}
+
+onMounted(async () => {
+  fetchPending()
+  fetchCompleted()
+  const custRes = await fetchCustomers({ limit: 1000 })
+  if (custRes.data) allCustomers.value = custRes.data
+})
 </script>

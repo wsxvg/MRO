@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "MRO-ERP",
+  "productName": "汇友进销存",
   "version": "1.0.0",
   "identifier": "com.mroerp.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "MRO 进销存系统",
+        "title": "汇友进销存系统",
         "width": 1280,
         "height": 800,
         "resizable": true,

@@ -12,7 +12,10 @@
         <p class="text-xs text-gray-400 mt-0.5">适合零售快速开单</p>
       </div>
       <div class="ml-auto flex items-center gap-3">
-        <SearchableSelect :options="customerOptions" v-model="form.customer_id" placeholder="客户: 默认零售" class="w-44" />
+        <select v-model="selectedWarehouseId" class="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+          <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+        </select>
+        <SearchableSelect :options="customerOptions" v-model="form.customer_id" placeholder="客户: 默认零售" class="w-44" @update:model-value="onCustomerChange" />
       </div>
     </div>
 
@@ -37,9 +40,18 @@
         <!-- Cart Items (scrollable) -->
         <div v-if="items.length > 0" class="flex-1 overflow-y-auto px-4 py-2 space-y-1">
           <div v-for="(item, idx) in items" :key="idx" class="flex items-center gap-2 py-2.5 border-b border-gray-50 last:border-0">
+            <span v-if="item.cost_price > 0 && item.unit_price < item.cost_price"
+              class="text-sm flex-shrink-0" title="💀 低于进价！">💀</span>
+            <span v-else
+              class="w-2.5 h-2.5 rounded-full flex-shrink-0" :class="marginColor(item)" :title="marginTip(item)"></span>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">{{ item.product_name }}</p>
-              <p class="text-xs text-gray-400">¥{{ item.unit_price?.toFixed(2) }}</p>
+              <div class="flex items-center gap-1 mt-0.5">
+                <span class="text-xs text-gray-400">¥</span>
+                <input v-model.number="item.unit_price" type="number" step="0.01" min="0"
+                  class="w-16 text-xs text-gray-600 border-b border-dashed border-gray-300 focus:border-primary-500 focus:outline-none bg-transparent pb-0.5"
+                  @input="calcLine(idx)" />
+              </div>
             </div>
             <div class="flex items-center gap-1">
               <button class="w-7 h-7 rounded-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" @click="decrement(idx)">
@@ -74,8 +86,8 @@
             <span class="text-xl font-bold text-gray-900">¥{{ total.toFixed(2) }}</span>
           </div>
 
-          <!-- Complete Sale -->
-          <button class="w-full btn-primary py-3 text-base font-semibold" :disabled="saving || items.length === 0 || !defaultWarehouse" @click="handleQuickSale">
+          <!-- Single button: complete sale -->
+          <button class="w-full btn-primary py-3 text-base font-semibold" :disabled="saving || items.length === 0 || !selectedWarehouseId" @click="handleQuickSale">
             {{ saving ? '保存中...' : '✓ 完成销售' }}
           </button>
         </div>
@@ -104,6 +116,20 @@
           <button v-for="cat in categories" :key="cat.id" :class="selectedCategoryId === cat.id ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors" @click="selectedCategoryId = cat.id">
             {{ cat.name }}
           </button>
+        </div>
+
+        <!-- Frequent Products -->
+        <div v-if="!searchQuery && frequentProducts.length > 0" class="px-4 pb-3">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-medium text-gray-500">常用商品</span>
+          </div>
+          <div class="flex gap-2 overflow-x-auto pb-1">
+            <button v-for="p in frequentProducts" :key="p.id"
+              class="flex-shrink-0 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-full hover:bg-gray-800 transition-colors"
+              @click="selectProduct(p)">
+              {{ p.name }} ¥{{ (p.reference_price || 0).toFixed(0) }}
+            </button>
+          </div>
         </div>
 
         <!-- Product Grid -->
@@ -153,16 +179,19 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useDebounceFn } from '@/composables/useDebounce'
-import { fetchCustomers } from '@/api'
-import { fetchDefaultWarehouse } from '@/api'
+import { fetchCustomers, fetchCustomerPrices } from '@/api'
+import { fetchDefaultWarehouse, fetchWarehouses } from '@/api'
 import { fetchProducts, fetchCategories } from '@/api'
 import { fetchStockByProduct } from '@/api'
 import { createSalesOrder, saveSalesOrderItems, completeSalesOrder } from '@/api'
-import type { Customer, Product, Category } from '@/types'
+import { fetchHotProducts } from '@/api/reports'
+import type { Customer, Product, Category, Warehouse } from '@/types'
 
 const router = useRouter()
 const saving = ref(false); const error = ref(''); const success = ref('')
 const defaultWarehouse = ref<{ id: number } | null>(null)
+const warehouses = ref<Warehouse[]>([])
+const selectedWarehouseId = ref<number | null>(null)
 const customers = ref<Customer[]>([])
 const categories = ref<Category[]>([])
 const allProducts = ref<Product[]>([])
@@ -170,6 +199,8 @@ const searchQuery = ref('')
 const searchResults = ref<Product[]>([])
 const selectedCategoryId = ref<number | null>(null)
 const hoveredProductId = ref<number | null>(null)
+const frequentProducts = ref<Product[]>([])
+const customerPricesMap = new Map<number, number>()
 const productStocks = reactive<Record<number, { warehouse_id: number; warehouse_name: string; quantity: number }[]>>({})
 
 const form = reactive({
@@ -203,13 +234,16 @@ function selectProduct(p: Product) {
     existing.quantity++
     calcLine(items.indexOf(existing))
   } else {
+    // Use customer price if available, otherwise reference price
+    const customerPrice = customerPricesMap.get(p.id)
+    const price = customerPrice ?? p.reference_price ?? 0
     items.push({
       product_id: p.id,
       product_name: p.name,
       quantity: 1,
-      unit_price: p.reference_price || 0,
+      unit_price: price,
       cost_price: p.cost_price || 0,
-      line_total: p.reference_price || 0
+      line_total: price
     })
   }
 }
@@ -230,6 +264,41 @@ function decrement(idx: number) {
 
 function clearCart() {
   items.splice(0, items.length)
+}
+
+function marginColor(item: { unit_price: number; cost_price: number }): string {
+  if (item.cost_price <= 0) return 'bg-gray-300' // 无进价，灰色
+  if (item.unit_price < item.cost_price) return 'bg-gray-900' // 💀 低于进价，黑色（最醒目）
+  const margin = (item.unit_price - item.cost_price) / item.unit_price
+  if (margin >= 0.3) return 'bg-green-500' // 毛利 >30%
+  if (margin >= 0.1) return 'bg-amber-400' // 毛利 10-30%
+  return 'bg-red-500' // 毛利 <10%
+}
+
+function marginTip(item: { unit_price: number; cost_price: number; product_name: string }): string {
+  if (item.cost_price <= 0) return '未知进价'
+  if (item.unit_price < item.cost_price) return '💀 低于进价！'
+  const margin = ((item.unit_price - item.cost_price) / item.unit_price * 100).toFixed(0)
+  return `毛利 ${margin}%`
+}
+
+async function onCustomerChange(customerId: string | number | null) {
+  customerPricesMap.clear()
+  if (!customerId) return
+  const { data } = await fetchCustomerPrices(Number(customerId))
+  if (data) {
+    for (const cp of data) {
+      customerPricesMap.set(cp.product_id, cp.price)
+    }
+    // Update prices for items already in cart
+    for (const item of items) {
+      const cp = customerPricesMap.get(item.product_id)
+      if (cp !== undefined) {
+        item.unit_price = cp
+        calcLine(items.indexOf(item))
+      }
+    }
+  }
 }
 
 function calcLine(idx: number) {
@@ -263,14 +332,16 @@ async function doSearch() {
 async function handleQuickSale() {
   if (saving.value) return
   saving.value = true; error.value = ''; success.value = ''
-  if (!defaultWarehouse.value) { error.value = '未配置默认仓库'; saving.value = false; return }
+  const whId = selectedWarehouseId.value || defaultWarehouse.value?.id
+  if (!whId) { error.value = '未配置默认仓库'; saving.value = false; return }
   try {
     const data: Record<string, any> = {
-      warehouse_id: defaultWarehouse.value.id,
+      warehouse_id: whId,
       total_amount: total.value,
       paid_amount: total.value,
       remark: form.remark || null,
-      status: 'completed'
+      needs_delivery: false,
+      status: 'pending'
     }
     if (form.customer_id) {
       data.customer_id = form.customer_id
@@ -299,15 +370,31 @@ async function handleQuickSale() {
 }
 
 onMounted(async () => {
-  const [defRes, cRes, pRes, catRes] = await Promise.all([
+  const [defRes, whRes, cRes, pRes, catRes, hotRes] = await Promise.all([
     fetchDefaultWarehouse(),
+    fetchWarehouses(),
     fetchCustomers({ type: 'retail' }),
     fetchProducts({}),
-    fetchCategories()
+    fetchCategories(),
+    fetchHotProducts()
   ])
   if (defRes.data) defaultWarehouse.value = defRes.data
+  if (whRes.data) {
+    warehouses.value = whRes.data
+    selectedWarehouseId.value = defaultWarehouse.value?.id || whRes.data[0]?.id || null
+  }
   if (cRes.data) customers.value = cRes.data
   if (pRes.data) allProducts.value = pRes.data
   if (catRes.data) categories.value = catRes.data
+
+  // Build frequent products from hot products by quantity
+  if (hotRes.data?.by_quantity && pRes.data) {
+    const hotNames = new Set(hotRes.data.by_quantity.map(h => h.product_name))
+    frequentProducts.value = pRes.data.filter(p => hotNames.has(p.name)).slice(0, 8)
+  }
+  // Fallback: if no hot data, use first 8 products
+  if (frequentProducts.value.length === 0 && pRes.data) {
+    frequentProducts.value = pRes.data.slice(0, 8)
+  }
 })
 </script>

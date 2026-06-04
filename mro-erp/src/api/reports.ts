@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { ApiResult, ListResponse, Database } from '@/types'
 
-// ====== Stock Report ======
+// ====== Stock Report (uses stock_lots for accurate valuation) ======
 export async function fetchStockReport(params?: {
   warehouse_id?: number
 }): Promise<ListResponse<{
@@ -12,29 +12,52 @@ export async function fetchStockReport(params?: {
   min_stock: number
   cost_price: number
   stock_value: number
+  has_estimated: boolean
 }>> {
-  let query = supabase
+  // 1. Get stock quantities
+  let stockQuery = supabase
     .from('stocks')
-    .select(
-      '*, products!left(name, min_stock, cost_price), warehouses!left(name)',
-      { count: 'exact' }
-    )
+    .select('*, products!left(name, min_stock, cost_price), warehouses!left(name)', { count: 'exact' })
 
   if (params?.warehouse_id) {
-    query = query.eq('warehouse_id', params.warehouse_id)
+    stockQuery = stockQuery.eq('warehouse_id', params.warehouse_id)
   }
 
-  const { data, error, count } = await query.order('product_id')
+  const { data: stockData, error, count } = await stockQuery.order('product_id')
 
-  const mapped = (data ?? []).map((s: any) => ({
-    product_id: s.product_id,
-    product_name: s.products?.name ?? '',
-    warehouse_name: s.warehouses?.name ?? '',
-    quantity: s.quantity,
-    min_stock: s.products?.min_stock ?? 0,
-    cost_price: s.products?.cost_price ?? 0,
-    stock_value: s.quantity * (s.products?.cost_price ?? 0)
-  }))
+  // 2. Get lot summaries for accurate valuation
+  const productIds = [...new Set((stockData ?? []).map((s: any) => s.product_id))]
+  const lotMap = new Map<number, { value: number; hasEstimated: boolean }>()
+
+  if (productIds.length > 0) {
+    const { data: lotData } = await supabase
+      .from('stock_lots')
+      .select('product_id, quantity, unit_cost, is_estimated')
+      .in('product_id', productIds)
+      .gt('quantity', 0)
+
+    for (const lot of (lotData ?? []) as any[]) {
+      const entry = lotMap.get(lot.product_id) ?? { value: 0, hasEstimated: false }
+      entry.value += lot.quantity * lot.unit_cost
+      if (lot.is_estimated) entry.hasEstimated = true
+      lotMap.set(lot.product_id, entry)
+    }
+  }
+
+  const mapped = (stockData ?? []).map((s: any) => {
+    const lotInfo = lotMap.get(s.product_id)
+    const stockValue = lotInfo ? lotInfo.value : s.quantity * (s.products?.cost_price ?? 0)
+    return {
+      product_id: s.product_id,
+      product_name: s.products?.name ?? '',
+      warehouse_name: s.warehouses?.name ?? '',
+      quantity: s.quantity,
+      min_stock: s.products?.min_stock ?? 0,
+      cost_price: s.products?.cost_price ?? 0,
+      stock_value: stockValue,
+      has_estimated: lotInfo?.hasEstimated ?? false,
+    }
+  })
 
   return { data: mapped, count: count ?? 0, error: error?.message ?? null }
 }
@@ -171,22 +194,39 @@ export async function fetchMonthlyTrend(): Promise<ListResponse<{
   return { data: result, count: result.length, error: error?.message ?? null }
 }
 
-// ====== Dashboard: inventory by category ======
+// ====== Dashboard: inventory by category (uses stock_lots) ======
 export async function fetchInventoryByCategory(): Promise<ListResponse<{
   category_name: string
   quantity: number
   stock_value: number
 }>> {
+  // Get stock with product/category info
   const { data, error } = await supabase
     .from('stocks')
-    .select('quantity, products!inner(cost_price, categories!inner(name))')
+    .select('product_id, quantity, products!inner(categories!inner(name))')
+
+  if (error) return { data: [], count: 0, error: error.message }
+
+  // Get lot values per product
+  const productIds = [...new Set((data ?? []).map((r: any) => r.product_id))]
+  const lotValueMap = new Map<number, number>()
+  if (productIds.length > 0) {
+    const { data: lotData } = await supabase
+      .from('stock_lots')
+      .select('product_id, quantity, unit_cost')
+      .in('product_id', productIds)
+      .gt('quantity', 0)
+    for (const lot of (lotData ?? []) as any[]) {
+      lotValueMap.set(lot.product_id, (lotValueMap.get(lot.product_id) ?? 0) + lot.quantity * lot.unit_cost)
+    }
+  }
 
   const map = new Map<string, { quantity: number; value: number }>()
   for (const row of (data ?? []) as any[]) {
     const catName = row.products?.categories?.name ?? '未分类'
     const entry = map.get(catName) ?? { quantity: 0, value: 0 }
     entry.quantity += row.quantity
-    entry.value += row.quantity * (row.products?.cost_price ?? 0)
+    entry.value += lotValueMap.get(row.product_id) ?? (row.quantity * 0)
     map.set(catName, entry)
   }
 
@@ -196,7 +236,7 @@ export async function fetchInventoryByCategory(): Promise<ListResponse<{
     stock_value: vals.value
   }))
 
-  return { data: result, count: result.length, error: error?.message ?? null }
+  return { data: result, count: result.length, error: null }
 }
 
 // ====== Dashboard: inventory turnover rate ======
@@ -226,13 +266,14 @@ export async function fetchInventoryTurnoverRate(params?: {
     0
   )
 
-  // Average inventory value = sum of stock quantity * cost_price
-  const stockRes = await supabase
-    .from('stocks')
-    .select('quantity, products!inner(cost_price)')
+  // Average inventory value = sum of lot quantity * lot unit_cost
+  const lotRes = await supabase
+    .from('stock_lots')
+    .select('quantity, unit_cost')
+    .gt('quantity', 0)
 
-  const avgInventory = ((stockRes.data ?? []) as any[]).reduce(
-    (sum: number, s: any) => sum + (s.quantity * Number(s.products?.cost_price ?? 0)),
+  const avgInventory = ((lotRes.data ?? []) as any[]).reduce(
+    (sum: number, l: any) => sum + (Number(l.quantity) * Number(l.unit_cost)),
     0
   )
 
@@ -417,4 +458,165 @@ export async function fetchHotProducts(params?: {
     .map(p => ({ product_name: p.name, total_amount: p.revenue, specification: p.spec }))
 
   return { data: { by_quantity: byQuantity, by_revenue: byRevenue }, error: null }
+}
+
+// ====== Slow Products (90 days no sales, with stock) ======
+export interface SlowProduct {
+  product_id: number
+  product_name: string
+  specification: string | null
+  stock_quantity: number
+  days_idle: number
+}
+
+export async function fetchSlowProducts(): Promise<ListResponse<SlowProduct>> {
+  // Get products with stock
+  const { data: stocks } = await supabase
+    .from('stocks')
+    .select('product_id, quantity, products!inner(name, specification, is_active)')
+    .gt('quantity', 0)
+
+  const productsWithStock = ((stocks ?? []) as any[])
+    .filter(s => s.products?.is_active)
+    .map(s => ({
+      product_id: s.product_id,
+      product_name: s.products?.name ?? '',
+      specification: s.products?.specification ?? null,
+      stock_quantity: s.quantity,
+    }))
+
+  if (productsWithStock.length === 0) return { data: [], count: 0, error: null }
+
+  // Get last sale date per product
+  const productIds = productsWithStock.map(p => p.product_id)
+  const { data: lastSales } = await supabase
+    .from('stock_transactions')
+    .select('product_id, created_at')
+    .in('product_id', productIds)
+    .eq('type', 'sale_out')
+    .order('created_at', { ascending: false })
+
+  const lastSaleMap = new Map<number, string>()
+  for (const tx of (lastSales ?? []) as any[]) {
+    if (!lastSaleMap.has(tx.product_id)) {
+      lastSaleMap.set(tx.product_id, tx.created_at)
+    }
+  }
+
+  const now = Date.now()
+  const result: SlowProduct[] = productsWithStock
+    .map(p => {
+      const lastSale = lastSaleMap.get(p.product_id)
+      const daysIdle = lastSale
+        ? Math.floor((now - new Date(lastSale).getTime()) / 86400000)
+        : 999
+      return { ...p, days_idle: daysIdle }
+    })
+    .filter(p => p.days_idle >= 60)
+    .sort((a, b) => b.days_idle - a.days_idle)
+    .slice(0, 10)
+
+  return { data: result, count: result.length, error: null }
+}
+
+// ====== Anomaly Detection ======
+export interface Anomaly {
+  type: string
+  severity: 'high' | 'medium'
+  product_id: number
+  product_name: string
+  detail: string
+}
+
+export async function fetchAnomalies(): Promise<ListResponse<Anomaly>> {
+  const anomalies: Anomaly[] = []
+
+  // 1. 进价异常：最近一次入库价较上次波动 >30%（不显示具体价格）
+  const { data: lots } = await supabase
+    .from('stock_lots')
+    .select('product_id, unit_cost, stock_in_date, products(name)')
+    .gt('unit_cost', 0)
+    .order('stock_in_date', { ascending: true })
+
+  const lotsByProduct = new Map<number, Array<{ cost: number; date: string }>>()
+  for (const lot of (lots ?? []) as any[]) {
+    const arr = lotsByProduct.get(lot.product_id) ?? []
+    arr.push({ cost: lot.unit_cost, date: lot.stock_in_date })
+    lotsByProduct.set(lot.product_id, arr)
+  }
+
+  for (const [productId, lotArr] of lotsByProduct) {
+    if (lotArr.length < 2) continue
+    const latest = lotArr[lotArr.length - 1]
+    const prev = lotArr[lotArr.length - 2]
+    const thirtyDaysAgo = Date.now() - 30 * 86400000
+    if (new Date(latest.date).getTime() < thirtyDaysAgo) continue
+    if (prev.cost <= 0) continue
+    const changePct = Math.round(((latest.cost - prev.cost) / prev.cost) * 100)
+    if (Math.abs(changePct) > 30) {
+      const dir = changePct > 0 ? '上涨' : '下降'
+      anomalies.push({
+        type: '进价异常',
+        severity: 'high',
+        product_id: productId,
+        product_name: (lots as any[])?.find((l: any) => l.product_id === productId)?.products?.name ?? '',
+        detail: `进价较上次${dir} ${Math.abs(changePct)}%，请核实`,
+      })
+    }
+  }
+
+  // 2. 库存为负
+  const { data: negStocks } = await supabase
+    .from('stocks')
+    .select('product_id, quantity, products!inner(name)')
+    .lt('quantity', 0)
+
+  for (const s of (negStocks ?? []) as any[]) {
+    anomalies.push({
+      type: '库存为负',
+      severity: 'high',
+      product_id: s.product_id,
+      product_name: s.products?.name ?? '',
+      detail: `库存为 ${s.quantity}，请检查出库记录`,
+    })
+  }
+
+  // 3. 低库存预警
+  const { data: lowStockProducts } = await supabase
+    .from('products')
+    .select('id, name, min_stock, stocks(quantity)')
+    .eq('is_active', true)
+    .gt('min_stock', 0)
+
+  for (const p of (lowStockProducts ?? []) as any[]) {
+    const totalQty = (p.stocks ?? []).reduce((s: number, st: any) => s + st.quantity, 0)
+    if (totalQty < p.min_stock) {
+      anomalies.push({
+        type: '低库存',
+        severity: 'medium',
+        product_id: p.id,
+        product_name: p.name,
+        detail: `当前库存 ${totalQty}，安全库存 ${p.min_stock}，建议补货`,
+      })
+    }
+  }
+
+  // 4. 滞销预警：有库存但 90 天无销售
+  const { data: slowData } = await fetchSlowProducts()
+  for (const s of (slowData ?? [])) {
+    if (s.days_idle >= 90) {
+      anomalies.push({
+        type: '滞销预警',
+        severity: 'medium',
+        product_id: s.product_id,
+        product_name: s.product_name,
+        detail: `已 ${s.days_idle} 天未售出，库存 ${s.stock_quantity} 个，建议清库`,
+      })
+    }
+  }
+
+  // Sort: high severity first
+  anomalies.sort((a, b) => (a.severity === 'high' ? -1 : 1) - (b.severity === 'high' ? -1 : 1))
+
+  return { data: anomalies, count: anomalies.length, error: null }
 }

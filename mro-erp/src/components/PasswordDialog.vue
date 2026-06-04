@@ -3,7 +3,7 @@
     <Transition name="dialog">
       <div v-if="visible" class="fixed inset-0 z-50 flex items-center justify-center" @click.self="handleCancel">
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+        <div class="absolute inset-0 bg-black/10 backdrop-blur-sm" />
 
         <!-- Dialog -->
         <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">

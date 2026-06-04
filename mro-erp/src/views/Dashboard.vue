@@ -11,7 +11,7 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
           </svg>
-          快速开单
+          快速收银
         </router-link>
       </div>
       <div class="flex items-center gap-2 surface px-3 py-1.5">
@@ -67,16 +67,16 @@
 
     <template v-else>
       <!-- KPI Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div ref="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <!-- 本月销售额 -->
-        <div class="surface-strong p-4">
+        <div class="surface-strong p-4 kpi-card">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">{{ selectedPeriodLabel }}销售额</span>
             <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
               <i class="ri-handbag-line text-emerald-500 text-xs"></i>
             </div>
           </div>
-          <div class="text-2xl font-bold text-gray-900 mb-1">¥{{ monthlySales.toLocaleString() }}</div>
+          <div ref="salesValueRef" class="text-2xl font-bold text-gray-900 mb-1">¥0</div>
           <div class="flex items-center gap-1">
             <span :class="salesChange >= 0 ? 'text-green-600' : 'text-red-500'" class="text-xs font-medium inline-flex items-center gap-0.5">
               <i :class="salesChange >= 0 ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'"></i>
@@ -87,7 +87,7 @@
           <div ref="spark2Ref" class="mt-1 h-9 w-full" />
         </div>
         <!-- 库存周转率 -->
-        <div class="surface-strong p-4">
+        <div class="surface-strong p-4 kpi-card">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">库存周转率</span>
             <div class="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
@@ -95,21 +95,43 @@
             </div>
           </div>
           <div class="text-2xl font-bold text-gray-900 mb-1">
-            {{ turnoverRate }}<span class="text-sm font-normal text-gray-400 ml-0.5">x</span>
+            <span ref="turnoverValueRef">0</span><span class="text-sm font-normal text-gray-400 ml-0.5">x</span>
           </div>
           <div class="text-xs text-gray-400">{{ selectedPeriodLabel }}销售成本 / 平均库存</div>
         </div>
         <!-- 低库存预警 -->
-        <div class="surface-strong p-4">
+        <div class="surface-strong p-4 kpi-card">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">低库存预警</span>
             <div class="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center">
               <i class="ri-alert-line text-red-500 text-xs"></i>
             </div>
           </div>
-          <div class="text-2xl font-bold text-gray-900 mb-1">{{ lowStockCount }}</div>
+          <div ref="lowStockValueRef" class="text-2xl font-bold text-gray-900 mb-1">0</div>
           <div :class="lowStockCount > 0 ? 'text-red-500' : 'text-gray-400'" class="text-xs">
             {{ lowStockCount > 0 ? '需及时补货' : '库存充足' }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Low Stock Alert -->
+      <div v-if="lowStockItems.length > 0" class="bg-white rounded-xl border border-red-100 p-5 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <i class="ri-alert-line text-red-500"></i>
+            <h3 class="text-sm font-semibold text-gray-900">低库存商品</h3>
+          </div>
+          <router-link to="/stock/in" class="text-xs text-primary-600 hover:text-primary-700 font-medium">
+            一键进货 →
+          </router-link>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div v-for="item in lowStockItems" :key="item.id"
+            class="flex items-center justify-between py-2 px-3 bg-red-50/60 rounded-lg">
+            <div>
+              <span class="text-sm font-medium text-gray-900">{{ item.name }}</span>
+              <span class="text-xs text-red-500 ml-2">库存 {{ item.stock }} / 安全 {{ item.min_stock }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -238,6 +260,72 @@
           </div>
         </div>
       </div>
+
+      <!-- Row 5: Anomaly Alerts -->
+      <div v-if="anomalies.length > 0" class="mb-6">
+        <div class="surface-strong p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">
+              <i class="ri-alarm-warning-line text-red-500 mr-1"></i>异常预警
+              <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">{{ anomalies.length }}</span>
+            </h3>
+          </div>
+          <div class="space-y-2">
+            <div v-for="(a, i) in anomalies" :key="i" class="flex items-start gap-3 py-2 px-3 rounded-lg"
+              :class="a.severity === 'high' ? 'bg-red-50/60' : 'bg-amber-50/60'">
+              <span class="mt-0.5 w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center text-xs"
+                :class="a.severity === 'high' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white'">
+                {{ a.severity === 'high' ? '!' : '?' }}
+              </span>
+              <div class="min-w-0 flex-1">
+                <span class="text-sm font-medium text-gray-900">{{ a.product_name }}</span>
+                <span class="text-xs text-gray-500 ml-2 px-1.5 py-0.5 rounded"
+                  :class="a.type === '进价异常' ? 'bg-red-100 text-red-600' : a.type === '库存为负' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'">
+                  {{ a.type }}
+                </span>
+                <p class="text-xs text-gray-500 mt-0.5">{{ a.detail }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 6: Slow Products -->
+      <div class="grid grid-cols-1 gap-4">
+        <div class="surface-strong p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">
+              <i class="ri-snowflake-line text-blue-400 mr-1"></i>滞销商品（60天+未售出）
+            </h3>
+          </div>
+          <div v-if="slowProducts.length === 0" class="py-8 text-center text-sm text-gray-400">暂无滞销商品</div>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-gray-500 border-b">
+                  <th class="pb-2 font-medium">商品名称</th>
+                  <th class="pb-2 font-medium">规格</th>
+                  <th class="pb-2 font-medium text-right">库存</th>
+                  <th class="pb-2 font-medium text-right">未售出天数</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in slowProducts" :key="item.product_id" class="border-b border-gray-50">
+                  <td class="py-2 font-medium text-gray-900">{{ item.product_name }}</td>
+                  <td class="py-2 text-gray-500">{{ item.specification || '-' }}</td>
+                  <td class="py-2 text-right">{{ item.stock_quantity }}</td>
+                  <td class="py-2 text-right">
+                    <span :class="item.days_idle >= 90 ? 'text-red-600 font-semibold' : 'text-amber-600'">
+                      {{ item.days_idle >= 999 ? '从未售出' : item.days_idle + ' 天' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </template>
   </div>
 </template>
@@ -246,6 +334,8 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRealtimeTables } from '@/composables/useRealtime'
 import { useDebounceFn } from '@/composables/useDebounce'
+import { useCountUp, useStaggerIn } from '@/composables/useGsap'
+import gsap from 'gsap'
 // ECharts 按需引入（减少约 800KB）
 import * as echarts from 'echarts/core'
 import { LineChart, PieChart } from 'echarts/charts'
@@ -260,8 +350,13 @@ import {
   fetchInventoryTurnoverRate,
   fetchRecentOrders,
   fetchSalesSummary,
-  fetchHotProducts
+  fetchHotProducts,
+  fetchSlowProducts,
+  fetchAnomalies,
+  fetchProfitReport,
+  fetchStockReport
 } from '@/api/reports'
+import type { SlowProduct, Anomaly } from '@/api/reports'
 
 const loading = ref(true)
 const selectedPeriod = ref<'thisMonth' | 'lastMonth' | 'thisYear'>('thisMonth')
@@ -271,6 +366,20 @@ const monthlySales = ref(0)
 const salesChange = ref(0)
 const turnoverRate = ref(0)
 const lowStockCount = ref(0)
+
+// Low stock items with details
+const lowStockItems = ref<Array<{ id: number; name: string; stock: number; min_stock: number }>>([])
+
+// GSAP animation refs
+const kpiContainer = ref<HTMLElement | null>(null)
+const salesValueRef = ref<HTMLElement | null>(null)
+const turnoverValueRef = ref<HTMLElement | null>(null)
+const lowStockValueRef = ref<HTMLElement | null>(null)
+
+const { animate: animateSales, cleanup: cleanupSales } = useCountUp(monthlySales, salesValueRef, { prefix: '¥', duration: 1.5 })
+const { animate: animateTurnover, cleanup: cleanupTurnover } = useCountUp(turnoverRate, turnoverValueRef, { decimals: 2, duration: 1.2 })
+const { animate: animateLowStock, cleanup: cleanupLowStock } = useCountUp(lowStockCount, lowStockValueRef, { duration: 0.8 })
+const { animate: animateKpiCards, cleanup: cleanupKpi } = useStaggerIn(kpiContainer, '.kpi-card', { y: 30, duration: 0.6 })
 const pendingSO = ref(0)
 
 // Chart data
@@ -279,6 +388,8 @@ const inventoryByCategory = ref<any[]>([])
 const recentOrders = ref<any[]>([])
 const hotByQuantity = ref<Array<{ product_name: string; total_quantity: number; specification: string | null }>>([])
 const hotByRevenue = ref<Array<{ product_name: string; total_amount: number; specification: string | null }>>([])
+const slowProducts = ref<SlowProduct[]>([])
+const anomalies = ref<Anomaly[]>([])
 
 // ECharts container refs
 const trendRef = ref<HTMLDivElement>()
@@ -518,14 +629,17 @@ async function loadData() {
     const { dateFrom, dateTo } = getPeriodRange()
     const [
       kpiRes, trendRes,
-      inventoryRes, turnoverRes, ordersRes, hotRes
+      inventoryRes, turnoverRes, ordersRes, hotRes,
+      slowRes, anomalyRes
     ] = await Promise.all([
       fetchDashboardKPIs({ date_from: dateFrom, date_to: dateTo }),
       fetchTrendData(dateFrom, dateTo),
       fetchInventoryByCategory(),
       fetchInventoryTurnoverRate({ date_from: dateFrom, date_to: dateTo }),
       fetchRecentOrders(8, { date_from: dateFrom, date_to: dateTo }),
-      fetchHotProducts({ date_from: dateFrom, date_to: dateTo })
+      fetchHotProducts({ date_from: dateFrom, date_to: dateTo }),
+      fetchSlowProducts(),
+      fetchAnomalies()
     ])
 
     if (kpiRes.data) {
@@ -554,8 +668,25 @@ async function loadData() {
       hotByRevenue.value = hotRes.data.by_revenue
     }
 
+    slowProducts.value = slowRes.data ?? []
+    anomalies.value = anomalyRes.data ?? []
+
+    // Low stock items with details
+    const stockRes = await fetchStockReport()
+    if (stockRes.data) {
+      lowStockItems.value = stockRes.data
+        .filter(s => s.min_stock > 0 && s.quantity < s.min_stock)
+        .map(s => ({ id: s.product_id, name: s.product_name, stock: s.quantity, min_stock: s.min_stock }))
+    }
+
     await nextTick()
     renderAllCharts()
+
+    // GSAP animations
+    animateKpiCards()
+    animateSales()
+    animateTurnover()
+    animateLowStock()
   } catch (e) {
     console.error('仪表盘数据加载失败', e)
   } finally {
@@ -592,5 +723,9 @@ onUnmounted(() => {
   trendChart?.dispose()
   pieChart?.dispose()
   spark2?.dispose()
+  cleanupSales()
+  cleanupTurnover()
+  cleanupLowStock()
+  cleanupKpi()
 })
 </script>

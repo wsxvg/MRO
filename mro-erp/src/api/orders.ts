@@ -38,6 +38,7 @@ export async function fetchSalesOrders(params?: {
     ...o,
     customer_name: o.customers?.name ?? null,
     warehouse_name: o.warehouses?.name ?? null,
+    needs_delivery: o.needs_delivery ?? false,
     customers: undefined,
     warehouses: undefined
   }))
@@ -56,6 +57,7 @@ export async function fetchSalesOrder(id: number): Promise<ApiResult<SalesOrder>
     const o = data as any
     o.customer_name = o.customers?.name ?? null
     o.warehouse_name = o.warehouses?.name ?? null
+    o.needs_delivery = o.needs_delivery ?? false
     delete o.customers
     delete o.warehouses
   }
@@ -66,7 +68,7 @@ export async function fetchSalesOrder(id: number): Promise<ApiResult<SalesOrder>
 export async function createSalesOrder(
   input: Omit<SalesOrder, 'id' | 'order_no' | 'created_at' | 'updated_at' | 'customer_name' | 'warehouse_name'>
 ): Promise<ApiResult<SalesOrder>> {
-  const { data, error } = await supabase.from('sales_orders').insert(input as any).select('id, order_no, customer_id, warehouse_id, status, total_amount, paid_amount, remark, created_at, updated_at').single()
+  const { data, error } = await supabase.from('sales_orders').insert(input as any).select('id, order_no, customer_id, warehouse_id, status, needs_delivery, total_amount, paid_amount, remark, created_at, updated_at').single()
   return { data, error: error?.message ?? null }
 }
 
@@ -74,12 +76,27 @@ export async function updateSalesOrder(
   id: number,
   input: Partial<Omit<SalesOrder, 'id' | 'order_no' | 'created_at' | 'updated_at'>>
 ): Promise<ApiResult<SalesOrder>> {
-  const { data, error } = await supabase.from('sales_orders').update(input as any).eq('id', id).select('id, order_no, customer_id, warehouse_id, status, total_amount, paid_amount, remark, created_at, updated_at').single()
+  const { data, error } = await supabase.from('sales_orders').update(input as any).eq('id', id).select('id, order_no, customer_id, warehouse_id, status, needs_delivery, total_amount, paid_amount, remark, created_at, updated_at').single()
   return { data, error: error?.message ?? null }
 }
 
 export async function completeSalesOrder(id: number): Promise<ApiResult<null>> {
   const { error } = await supabase.rpc('complete_sales_order', { p_order_id: id } as any)
+  if (!error) {
+    const { data: items } = await supabase
+      .from('sales_order_items')
+      .select('product_id')
+      .eq('sales_order_id', id)
+    const productIds = [...new Set((items ?? []).map((i: any) => i.product_id))]
+    await Promise.all(productIds.map(pid =>
+      supabase.rpc('calc_safety_stock', { p_product_id: pid } as any)
+    ))
+  }
+  return { data: null, error: error?.message ?? null }
+}
+
+export async function reverseSalesOrder(id: number): Promise<ApiResult<null>> {
+  const { error } = await supabase.rpc('reverse_sales_order', { p_order_id: id } as any)
   return { data: null, error: error?.message ?? null }
 }
 
@@ -148,6 +165,7 @@ export async function fetchSalesReturns(params?: {
     ...o,
     customer_name: o.customers?.name ?? null,
     warehouse_name: o.warehouses?.name ?? null,
+    needs_delivery: o.needs_delivery ?? false,
     customers: undefined,
     warehouses: undefined
   }))

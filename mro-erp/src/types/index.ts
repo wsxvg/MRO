@@ -1,9 +1,40 @@
 // ====== MRO ERP Type Definitions ======
 
 // --- Common Types ---
-export type OrderStatus = 'draft' | 'completed' | 'cancelled'
+export type OrderStatus = 'draft' | 'pending' | 'completed' | 'cancelled' | 'returned'
 export type PaymentMethod = 'cash' | 'transfer' | 'wechat' | 'alipay' | 'other'
 export type StockTransactionType = 'stock_in' | 'stock_out' | 'sale_out' | 'sale_return' | 'transfer_in' | 'transfer_out' | 'adjustment'
+
+// --- Suppliers ---
+export interface Supplier {
+  id: number
+  name: string
+  contact_person: string | null
+  phone: string | null
+  address: string | null
+  remark: string | null
+  created_at: string
+  updated_at: string
+}
+
+// --- Stock Lots (批次) ---
+export interface StockLot {
+  id: number
+  warehouse_id: number
+  product_id: number
+  supplier_id: number | null
+  quantity: number
+  unit_cost: number
+  is_estimated: boolean
+  stock_in_date: string
+  remark: string | null
+  created_at: string
+  updated_at: string
+  // Joined fields
+  product_name?: string
+  warehouse_name?: string
+  supplier_name?: string
+}
 
 export interface Timestamps {
   created_at: string
@@ -50,6 +81,7 @@ export interface Product {
   cost_price: number
   cost_price_auto: boolean
   min_stock: number
+  safety_stock_manual: boolean
   is_active: boolean
   remark: string | null
   created_at: string
@@ -106,6 +138,7 @@ export interface StockTransaction {
   type: StockTransactionType
   quantity: number
   unit_cost: number | null
+  lot_id: number | null
   ref_type: string | null
   ref_id: number | null
   remark: string | null
@@ -119,9 +152,10 @@ export interface StockTransaction {
 export interface SalesOrder {
   id: number
   order_no: string
-  customer_id: number
+  customer_id: number | null
   warehouse_id: number
   status: OrderStatus
+  needs_delivery: boolean
   total_amount: number
   paid_amount: number
   remark: string | null
@@ -232,6 +266,8 @@ export interface Database {
       customer_prices: { Row: CustomerPrice; Insert: CustomerPrice; Update: Partial<CustomerPrice>; Relationships: [] }
       stocks: { Row: Stock; Insert: Omit<Stock, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Stock, 'id'>>; Relationships: [] }
       stock_transactions: { Row: StockTransaction; Insert: Omit<StockTransaction, 'id' | 'created_at'>; Update: Partial<Omit<StockTransaction, 'id'>>; Relationships: [] }
+      suppliers: { Row: Supplier; Insert: Omit<Supplier, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<Supplier, 'id'>>; Relationships: [] }
+      stock_lots: { Row: StockLot; Insert: Omit<StockLot, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<StockLot, 'id'>>; Relationships: [] }
       stock_transfers: { Row: StockTransfer; Insert: Omit<StockTransfer, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<StockTransfer, 'id'>>; Relationships: [] }
       stock_transfer_items: { Row: StockTransferItem; Insert: Omit<StockTransferItem, 'id'>; Update: Partial<Omit<StockTransferItem, 'id'>>; Relationships: [] }
       sales_orders: { Row: SalesOrder; Insert: Omit<SalesOrder, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<SalesOrder, 'id'>>; Relationships: [] }
@@ -246,6 +282,9 @@ export interface Database {
       complete_sales_return: { Args: { p_return_id: number }; Returns: void }
       get_monthly_sales_trend: { Args: { p_start_date: string }; Returns: { month: string; sales_amount: number; sales_count: number }[] }
       get_stock_transactions_by_date: { Args: { p_date_from?: string; p_date_to?: string; p_warehouse_id?: number; p_product_id?: number; p_type?: string }; Returns: { date: string; type: string; total_quantity: number; transaction_count: number }[] }
+      stock_in_with_lot: { Args: { p_product_id: number; p_warehouse_id: number; p_quantity: number; p_unit_cost?: number; p_is_estimated?: boolean; p_supplier_id?: number; p_remark?: string }; Returns: number }
+      update_lot_cost: { Args: { p_lot_id: number; p_new_cost: number }; Returns: void }
+      recalc_product_cost: { Args: { p_product_id: number }; Returns: void }
     }
   }
 }

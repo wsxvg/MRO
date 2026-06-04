@@ -105,15 +105,18 @@
               <circle cx="16.24" cy="16.24" r="0.8" />
             </svg>
           </div>
-          <span class="text-white/90 text-lg font-semibold tracking-tight">MRO 进销存</span>
+          <span class="text-white/90 text-lg font-semibold tracking-tight">汇友进销存</span>
         </div>
       </div>
 
     </div>
 
     <!-- Right Login Panel -->
-    <div class="flex items-center justify-center p-6 sm:p-10 bg-white">
-      <div class="w-full max-w-sm">
+    <div class="flex items-center justify-center p-6 sm:p-10 bg-white relative">
+      <!-- Subtle background pattern -->
+      <div class="absolute inset-0 opacity-[0.02]" style="background-image: radial-gradient(circle at 1px 1px, #111827 1px, transparent 0); background-size: 32px 32px;" />
+
+      <div class="w-full max-w-sm relative z-10" ref="formRef">
         <!-- Mobile header -->
         <div class="lg:hidden flex flex-col items-center gap-3 mb-12">
           <div class="size-12 rounded-xl bg-primary-50 flex items-center justify-center">
@@ -121,7 +124,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           </div>
-          <h1 class="text-xl font-bold text-gray-900">MRO 进销存系统</h1>
+          <h1 class="text-xl font-bold text-gray-900">汇友进销存系统</h1>
           <p class="text-sm text-gray-500">工业品贸易管理系统</p>
         </div>
 
@@ -158,7 +161,7 @@
                 placeholder="请输入用户名"
                 autocomplete="username"
                 required
-                class="w-full h-11 pl-10 pr-3.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200"
+                class="w-full h-11 pl-10 pr-3.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] transition-all duration-200"
                 @focus="isFieldFocused = 'username'"
                 @blur="isFieldFocused = ''"
               />
@@ -180,7 +183,7 @@
                 placeholder="请输入密码"
                 autocomplete="current-password"
                 required
-                class="w-full h-11 pl-10 pr-10 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200"
+                class="w-full h-11 pl-10 pr-10 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] transition-all duration-200"
                 @focus="isFieldFocused = 'password'"
                 @blur="isFieldFocused = ''"
               />
@@ -292,6 +295,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import BaseModal from '@/components/BaseModal.vue'
+import gsap from 'gsap'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -315,6 +319,7 @@ const cpSuccess = ref('')
 
 // === 3D Scene - Mouse Tracking ===
 const sceneRef = ref<HTMLDivElement | null>(null)
+const formRef = ref<HTMLDivElement | null>(null)
 const mouseX = ref(0)
 const mouseY = ref(0)
 const blockOffsetX = ref(0)
@@ -361,6 +366,32 @@ function handleMouseMove(e: MouseEvent) {
 
 onMounted(() => {
   window.addEventListener('mousemove', handleMouseMove)
+
+  // GSAP entrance animations
+  if (formRef.value) {
+    // Form elements staggered entrance
+    gsap.from(formRef.value.children, {
+      y: 20,
+      opacity: 0,
+      duration: 0.5,
+      stagger: 0.1,
+      ease: 'power2.out',
+      delay: 0.2,
+    })
+  }
+
+  // Left panel scene blocks entrance
+  if (sceneRef.value) {
+    gsap.from(sceneRef.value.querySelectorAll('.absolute'), {
+      scaleY: 0,
+      opacity: 0,
+      transformOrigin: 'bottom',
+      duration: 0.8,
+      stagger: 0.05,
+      ease: 'power3.out',
+      delay: 0.3,
+    })
+  }
 })
 
 onBeforeUnmount(() => {

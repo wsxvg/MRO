@@ -19,25 +19,25 @@ CREATE SEQUENCE IF NOT EXISTS order_seq START 1;
 CREATE OR REPLACE FUNCTION generate_order_no(prefix TEXT)
 RETURNS TEXT AS $$
 DECLARE
-  date_part TEXT;
-  seq_num INT;
-  order_no TEXT;
+  v_date_part TEXT;
+  v_seq_num INT;
+  v_order_no TEXT;
 BEGIN
-  date_part := TO_CHAR(NOW(), 'YYYYMMDD');
-  seq_num := COALESCE((
-    SELECT CAST(RIGHT(order_no, 4) AS INT) + 1
+  v_date_part := TO_CHAR(NOW(), 'YYYYMMDD');
+  v_seq_num := COALESCE((
+    SELECT CAST(RIGHT(t.order_no, 4) AS INT) + 1
     FROM (
-      SELECT order_no FROM sales_orders WHERE order_no LIKE prefix || '-' || date_part || '-%'
+      SELECT order_no FROM sales_orders WHERE order_no LIKE prefix || '-' || v_date_part || '-%'
       UNION ALL
-      SELECT order_no FROM sales_return_orders WHERE order_no LIKE prefix || '-' || date_part || '-%'
+      SELECT order_no FROM sales_return_orders WHERE order_no LIKE prefix || '-' || v_date_part || '-%'
       UNION ALL
-      SELECT order_no FROM stock_transfers WHERE order_no LIKE prefix || '-' || date_part || '-%'
+      SELECT order_no FROM stock_transfers WHERE order_no LIKE prefix || '-' || v_date_part || '-%'
     ) t
-    ORDER BY order_no DESC
+    ORDER BY t.order_no DESC
     LIMIT 1
   ), 0) + 1;
-  order_no := prefix || '-' || date_part || '-' || LPAD(seq_num::TEXT, 4, '0');
-  RETURN order_no;
+  v_order_no := prefix || '-' || v_date_part || '-' || LPAD(v_seq_num::TEXT, 4, '0');
+  RETURN v_order_no;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -135,9 +135,10 @@ CREATE TABLE IF NOT EXISTS stock_transactions (
 CREATE TABLE IF NOT EXISTS sales_orders (
   id BIGSERIAL PRIMARY KEY,
   order_no TEXT NOT NULL UNIQUE,
-  customer_id BIGINT REFERENCES customers(id) NOT NULL,
+  customer_id BIGINT REFERENCES customers(id),
   warehouse_id BIGINT REFERENCES warehouses(id) NOT NULL,
-  status TEXT DEFAULT 'draft' CHECK (status IN ('draft','completed','cancelled')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('draft', 'pending', 'completed', 'cancelled', 'returned')),
+  needs_delivery BOOLEAN DEFAULT false,
   total_amount NUMERIC(12,2) DEFAULT 0,
   paid_amount NUMERIC(12,2) DEFAULT 0,
   remark TEXT,

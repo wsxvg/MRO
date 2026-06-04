@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
       manifest: {
-        name: 'MRO 进销存',
-        short_name: 'MRO',
-        description: 'MRO 工业品进销存管理系统',
+        name: '汇友进销存',
+        short_name: '汇友',
+        description: '汇友工业品进销存管理系统',
         theme_color: '#111827',
         background_color: '#f8fafc',
         display: 'standalone',

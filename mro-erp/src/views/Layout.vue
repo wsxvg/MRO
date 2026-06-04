@@ -21,7 +21,7 @@
           </svg>
         </div>
         <div v-show="!sidebarCollapsed" class="min-w-0">
-          <span class="block font-semibold text-gray-900 text-sm truncate">MRO 进销存</span>
+          <span class="block font-semibold text-gray-900 text-sm truncate">汇友进销存</span>
           <span class="block text-[11px] text-gray-400 mt-0.5">仓储 · 销售 · 报表</span>
         </div>
       </div>
@@ -60,8 +60,14 @@
               <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <circle cx="12" cy="12" r="3" />
             </template>
+            <template v-else-if="item.icon === 'download'">
+              <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </template>
           </svg>
           <span v-show="!sidebarCollapsed" class="text-sm">{{ item.label }}</span>
+          <span v-if="item.badge && item.badge > 0" class="ml-auto text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center">
+            {{ item.badge }}
+          </span>
         </button>
 
       </nav>
@@ -94,7 +100,7 @@
 
     <!-- Mobile overlay + sidebar -->
     <div v-if="sidebarOpen" class="fixed inset-0 z-30 lg:hidden">
-      <div class="absolute inset-0 bg-black/30" @click="sidebarOpen = false" />
+      <div class="absolute inset-0 bg-black/10" @click="sidebarOpen = false" />
         <aside class="absolute left-0 top-0 bottom-0 w-60 bg-white shadow-2xl flex flex-col">
         <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
           <div class="w-8 h-8 bg-gray-900 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -109,7 +115,7 @@
               <circle cx="16.24" cy="16.24" r="0.8" />
             </svg>
           </div>
-          <span class="font-bold text-gray-900 text-sm">MRO 进销存</span>
+          <span class="font-bold text-gray-900 text-sm">汇友进销存</span>
         </div>
 
         <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
@@ -190,9 +196,15 @@
 
       <!-- Page content -->
       <main class="flex-1 overflow-auto p-4 lg:p-6">
-        <router-view v-slot="{ Component }">
-          <transition name="page-fade" mode="out-in">
-            <component :is="Component" />
+        <router-view v-slot="{ Component, route }">
+          <transition
+            :css="false"
+            @before-enter="onBeforeEnter"
+            @enter="onEnter"
+            @leave="onLeave"
+            mode="out-in"
+          >
+            <component :is="Component" :key="route.path" />
           </transition>
         </router-view>
       </main>
@@ -201,9 +213,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { fetchSalesOrders } from '@/api'
+import gsap from 'gsap'
+
+// Page transition animations
+function onBeforeEnter(el: Element) {
+  gsap.set(el, { opacity: 0, y: 12 })
+}
+
+function onEnter(el: Element, done: () => void) {
+  gsap.to(el, {
+    opacity: 1,
+    y: 0,
+    duration: 0.3,
+    ease: 'power2.out',
+    onComplete: done,
+  })
+}
+
+function onLeave(el: Element, done: () => void) {
+  gsap.to(el, {
+    opacity: 0,
+    y: -8,
+    duration: 0.2,
+    ease: 'power2.in',
+    onComplete: done,
+  })
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -218,15 +257,18 @@ interface NavItem {
   label: string
   path: string
   icon: string
+  badge?: number
 }
 
-const navItems: NavItem[] = [
+const pendingDeliveryCount = ref(0)
+
+const navItems = computed<NavItem[]>(() => [
   { label: '仪表板', path: '/dashboard', icon: 'home' },
   { label: '商品管理', path: '/products', icon: 'cube' },
   { label: '客户管理', path: '/customers', icon: 'users' },
-  { label: '销售管理', path: '/sales', icon: 'receipt' },
+  { label: '销售管理', path: '/sales', icon: 'receipt', badge: pendingDeliveryCount.value },
   { label: '系统设置', path: '/settings/warehouses', icon: 'gear' },
-]
+])
 
 function isActive(path: string): boolean {
   if (path === '/dashboard') return route.path === '/dashboard'
@@ -259,9 +301,17 @@ function handleLogout() {
   router.push('/login')
 }
 
+async function fetchPendingCount() {
+  const res = await fetchSalesOrders({ status: 'pending' })
+  pendingDeliveryCount.value = res.data?.length ?? 0
+}
+
 onMounted(() => {
   updateTime()
   timer = setInterval(updateTime, 1000)
+  fetchPendingCount()
+  // Refresh pending count every 30 seconds
+  setInterval(fetchPendingCount, 30000)
 })
 
 onUnmounted(() => {

@@ -46,6 +46,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/products/ProductImport.vue')
       },
       {
+        path: 'stock/in',
+        name: 'StockIn',
+        component: () => import('@/views/warehouses/StockImport.vue')
+      },
+      {
         path: 'customers',
         name: 'Customers',
         component: () => import('@/views/customers/CustomerList.vue')
@@ -151,14 +156,24 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/views/warehouses/WarehouseStock.vue')
           },
           {
-            path: 'warehouses/import-stock',
-            name: 'SettingsStockImport',
-            component: () => import('@/views/warehouses/StockImport.vue')
-          },
-          {
             path: 'warehouses/transactions',
             name: 'SettingsWarehouseTransactions',
             component: () => import('@/views/warehouses/WarehouseTransactions.vue')
+          },
+          {
+            path: 'warehouses/lots',
+            name: 'SettingsLotHistory',
+            component: () => import('@/views/warehouses/LotHistory.vue')
+          },
+          {
+            path: 'suppliers',
+            name: 'SettingsSuppliers',
+            component: () => import('@/views/settings/SupplierList.vue')
+          },
+          {
+            path: 'data',
+            name: 'SettingsData',
+            component: () => import('@/views/settings/DataImportExport.vue')
           },
           {
             path: 'categories',
@@ -170,11 +185,6 @@ const routes: RouteRecordRaw[] = [
             name: 'SettingsUnits',
             component: () => import('@/views/settings/UnitList.vue')
           },
-          {
-            path: 'security',
-            name: 'SettingsSecurity',
-            component: () => import('@/views/settings/SecuritySettings.vue')
-          }
         ]
       }
     ]

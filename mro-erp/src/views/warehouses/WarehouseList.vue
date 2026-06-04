@@ -2,7 +2,8 @@
   <div class="page-padding">
     <BasePageHeader title="仓库管理">
       <div class="flex gap-2">
-        <router-link to="/settings/warehouses/import-stock" class="btn-secondary text-sm">导入库存</router-link>
+        <router-link to="/stock/in" class="btn-secondary text-sm">入库</router-link>
+        <router-link to="/settings/warehouses/lots" class="btn-secondary text-sm">批次管理</router-link>
         <button class="btn-primary text-sm" @click="showNewModal = true">新增仓库</button>
       </div>
     </BasePageHeader>

@@ -1,6 +1,11 @@
 <template>
   <Teleport to="body">
-    <Transition name="modal">
+    <Transition
+      :css="false"
+      @before-enter="onBeforeEnter"
+      @enter="onEnter"
+      @leave="onLeave"
+    >
       <div
         v-if="modelValue"
         ref="overlayRef"
@@ -9,11 +14,11 @@
         aria-modal="true"
         :aria-labelledby="titleId"
       >
-        <div class="fixed inset-0 bg-gray-950/45 backdrop-blur-sm" @click="close" />
+        <div class="fixed inset-0 bg-gray-950/45 backdrop-blur-sm modal-overlay" @click="close" />
 
         <div
           ref="panelRef"
-          class="relative w-full rounded-3xl shadow-[0_24px_80px_rgba(15,23,42,0.18)] border border-gray-200/70 bg-white overflow-hidden"
+          class="relative w-full rounded-3xl shadow-[0_24px_80px_rgba(15,23,42,0.18)] border border-gray-200/70 bg-white overflow-hidden modal-panel"
           :class="sizeClass"
           @click.stop
         >
@@ -49,6 +54,33 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue'
+import gsap from 'gsap'
+
+function onBeforeEnter(el: Element) {
+  gsap.set(el, { opacity: 0 })
+  const overlay = el.querySelector('.modal-overlay')
+  const panel = el.querySelector('.modal-panel')
+  if (overlay) gsap.set(overlay, { opacity: 0 })
+  if (panel) gsap.set(panel, { opacity: 0, scale: 0.95, y: 16 })
+}
+
+function onEnter(el: Element, done: () => void) {
+  const overlay = el.querySelector('.modal-overlay')
+  const panel = el.querySelector('.modal-panel')
+  const tl = gsap.timeline({ onComplete: done })
+  tl.to(el, { opacity: 1, duration: 0.15 })
+  if (overlay) tl.to(overlay, { opacity: 1, duration: 0.2 }, '<')
+  if (panel) tl.to(panel, { opacity: 1, scale: 1, y: 0, duration: 0.35, ease: 'back.out(1.2)' }, '-=0.1')
+}
+
+function onLeave(el: Element, done: () => void) {
+  const panel = el.querySelector('.modal-panel')
+  const overlay = el.querySelector('.modal-overlay')
+  const tl = gsap.timeline({ onComplete: done })
+  if (panel) tl.to(panel, { opacity: 0, scale: 0.96, y: 8, duration: 0.2, ease: 'power2.in' })
+  if (overlay) tl.to(overlay, { opacity: 0, duration: 0.2 }, '-=0.1')
+  tl.to(el, { opacity: 0, duration: 0.1 }, '-=0.05')
+}
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -147,25 +179,3 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.modal-enter-active .relative,
-.modal-leave-active .relative {
-  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
-}
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-.modal-enter-from .relative {
-  transform: scale(0.96) translateY(8px);
-  opacity: 0;
-}
-.modal-leave-to .relative {
-  transform: scale(0.96) translateY(8px);
-  opacity: 0;
-}
-</style>

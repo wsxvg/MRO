@@ -128,19 +128,19 @@
 
         <!-- Actions -->
         <div class="flex gap-3">
-          <button class="btn-secondary flex-1" :disabled="saving" @click="saveAsDraft">
+          <button class="btn-primary flex-1" :disabled="saving" @click="saveAsPending">
             <svg v-if="saving" class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            {{ saving ? '保存中...' : '保存草稿' }}
+            {{ saving ? '保存中...' : '保存为待发货' }}
           </button>
-          <button class="btn-primary flex-1" :disabled="saving" @click="saveAndComplete">
+          <button class="btn-secondary flex-1" :disabled="saving" @click="saveAndComplete">
             <svg v-if="saving" class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            {{ saving ? '保存中...' : '完成销售' }}
+            {{ saving ? '保存中...' : '直接完成' }}
           </button>
         </div>
 
@@ -228,7 +228,7 @@ async function loadForm() {
   }
 }
 
-async function saveAsDraft() { await handleSubmit('draft') }
+async function saveAsPending() { await handleSubmit('pending') }
 async function saveAndComplete() { await handleSubmit('completed') }
 
 async function handleSubmit(status: string) {
@@ -242,7 +242,7 @@ async function handleSubmit(status: string) {
       total_amount: total.value,
       paid_amount: 0,
       remark: form.remark || null,
-      status: 'draft'
+      status: 'pending'
     } as any
     const orderRes = isEdit
       ? await updateSalesOrder(Number(route.params.id), data)
@@ -261,7 +261,7 @@ async function handleSubmit(status: string) {
       const rpcRes = await completeSalesOrder(orderId)
       if (rpcRes.error) {
         // RPC 失败时回退为草稿，防止出现"已完成但未扣库存"的脏数据
-        await updateSalesOrder(orderId, { status: 'draft', paid_amount: 0 })
+        await updateSalesOrder(orderId, { status: 'pending', paid_amount: 0 })
         error.value = rpcRes.error
         return
       }

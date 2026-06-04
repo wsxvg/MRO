@@ -7,6 +7,8 @@ export * from './orders'
 export * from './stockTransactions'
 export * from './reports'
 export * from './units'
+export * from './suppliers'
+export * from './purchaseOrders'
 
 // Re-import for wrapper objects
 import {
@@ -17,6 +19,7 @@ import { fetchCustomers, fetchCustomer, createCustomer, updateCustomer, deleteCu
 import { createStockIn } from './stockTransactions'
 import { fetchWarehouses, fetchWarehouse, createWarehouse, updateWarehouse, deleteWarehouse, fetchDefaultWarehouse, fetchStockByProduct } from './warehouses'
 import { fetchUnits, createUnit, updateUnit, deleteUnit } from './units'
+import { fetchAllSuppliers, createSupplier, updateSupplier, deleteSupplier } from './suppliers'
 
 // ====== productsApi wrapper ======
 export const productsApi = {
@@ -146,7 +149,7 @@ export const productsApi = {
       // 5. 并发更新（重复项通常较少）
       const updateResults = await Promise.all(toUpdate.map(async ({ id, values }) => {
         const { error } = await supabase.from('products').update(values as any).eq('id', id)
-        return { name: values.name, error }
+        return { name: values.name, error, id, cost_price: values.cost_price, cost_price_auto: values.cost_price_auto }
       }))
       for (const r of updateResults) {
         if (r.error) {
@@ -154,6 +157,19 @@ export const productsApi = {
         } else {
           updated++
         }
+      }
+
+      // 6. 有真实进价的商品，自动更新暂估批次（相当于批量核价）
+      const toReconcile = updateResults.filter(r => !r.error && r.cost_price > 0 && !r.cost_price_auto)
+      for (const r of toReconcile) {
+        await supabase
+          .from('stock_lots')
+          .update({ unit_cost: r.cost_price, is_estimated: false } as any)
+          .eq('product_id', r.id)
+          .eq('is_estimated', true)
+          .gt('quantity', 0)
+        // 重算商品平均成本
+        await supabase.rpc('recalc_product_cost', { p_product_id: r.id } as any)
       }
 
       return { success: errors.length === 0, created, updated, skipped, errors }
@@ -215,4 +231,12 @@ export const customersApi = {
       return { success: false, error: e?.message ?? '导入失败' }
     }
   }
+}
+
+// ====== suppliersApi wrapper ======
+export const suppliersApi = {
+  getAll: fetchAllSuppliers,
+  create: createSupplier,
+  update: updateSupplier,
+  delete: deleteSupplier,
 }
