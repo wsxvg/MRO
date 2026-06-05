@@ -269,7 +269,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { fetchSalesOrders, fetchSalesOrderItems, completeSalesOrder, updateSalesOrder, createSalesReturn, saveSalesReturnItems, completeSalesReturn, reverseSalesOrder, deleteSalesOrder, fetchCustomers } from '@/api'
+import { fetchSalesOrders, fetchSalesOrder, fetchSalesOrderItems, completeSalesOrder, updateSalesOrder, createSalesReturn, saveSalesReturnItems, completeSalesReturn, reverseSalesOrder, deleteSalesOrder, fetchCustomers } from '@/api'
 import { fetchStatementData, exportStatementExcel } from '@/lib/statementExport'
 import type { SalesOrder, SalesOrderItem, Customer } from '@/types'
 import BasePageHeader from '@/components/BasePageHeader.vue'
@@ -321,23 +321,38 @@ function formatDate(dateStr: string): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+import { supabase } from '@/lib/supabase'
+
 async function fetchPending() {
   pendingLoading.value = true
-  const res = await fetchSalesOrders({ status: 'pending' })
-  if (res.data) {
-    // Fetch item summaries
-    const ordersWithSummary = await Promise.all(
-      res.data.map(async (order) => {
-        const itemsRes = await fetchSalesOrderItems(order.id)
-        const summary = (itemsRes.data ?? [])
-          .map((i: any) => `${i.product_name}×${i.quantity}`)
-          .join(', ')
-        return { ...order, item_summary: summary }
-      })
-    )
-    pendingOrders.value = ordersWithSummary
+  try {
+    const res = await fetchSalesOrders({ status: 'pending' })
+    if (res.data && res.data.length > 0) {
+      const orderIds = res.data.map(o => o.id)
+      const { data: allItems } = await supabase
+        .from('sales_order_items')
+        .select('sales_order_id, products!left(name)')
+        .in('sales_order_id', orderIds)
+
+      const itemsByOrder = new Map<number, string[]>()
+      for (const item of (allItems ?? []) as any[]) {
+        const list = itemsByOrder.get(item.sales_order_id) ?? []
+        list.push(item.products?.name ?? '?')
+        itemsByOrder.set(item.sales_order_id, list)
+      }
+
+      pendingOrders.value = res.data.map(order => ({
+        ...order,
+        item_summary: (itemsByOrder.get(order.id) ?? []).join(', ')
+      }))
+    } else {
+      pendingOrders.value = []
+    }
+  } catch (e) {
+    console.error('加载待发货列表失败', e)
+  } finally {
+    pendingLoading.value = false
   }
-  pendingLoading.value = false
 }
 
 async function fetchCompleted() {
@@ -365,8 +380,8 @@ async function handleDeliver(orderId: number) {
 async function viewOrder(orderId: number) {
   detailVisible.value = true
   detailLoading.value = true
-  const orders = await fetchSalesOrders({})
-  detailOrder.value = (orders.data ?? []).find(o => o.id === orderId) ?? null
+  const orderRes = await fetchSalesOrder(orderId)
+  detailOrder.value = orderRes.data
   const itemsRes = await fetchSalesOrderItems(orderId)
   detailItems.value = itemsRes.data ?? []
   detailLoading.value = false
@@ -374,10 +389,10 @@ async function viewOrder(orderId: number) {
 
 async function handleRevoke(orderId: number) {
   if (!confirm('确定撤回此订单？库存将恢复，订单将被删除。')) return
-  const { error } = await reverseSalesOrder(orderId)
-  if (error) { alert('撤回失败: ' + error); return }
-  // Stock restored, now delete the order entirely
-  await deleteSalesOrder(orderId)
+  const { error: reverseErr } = await reverseSalesOrder(orderId)
+  if (reverseErr) { alert('撤回失败: ' + reverseErr); return }
+  const { error: deleteErr } = await deleteSalesOrder(orderId)
+  if (deleteErr) { alert('删除订单失败: ' + deleteErr + '，但库存已恢复'); }
   fetchPending()
   fetchCompleted()
 }
@@ -438,8 +453,8 @@ async function handleReturn() {
     return
   }
 
-  // Update original order status
-  await updateSalesOrder(returnOrder.value.id, { status: 'returned' as any })
+  // Don't change original order status — the return order itself records the return.
+  // Original order stays as 'completed'.
 
   returnVisible.value = false
   returnSaving.value = false

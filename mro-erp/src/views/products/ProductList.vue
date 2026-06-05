@@ -1,8 +1,7 @@
 <template>
   <div class="page-padding">
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-semibold tracking-tight text-gray-900">商品管理</h1>
-      <router-link to="/stock/in" class="btn-primary text-sm">进货</router-link>
+      <h1 class="text-2xl font-semibold tracking-tight text-gray-900">库存查询</h1>
     </div>
 
     <FilterBar

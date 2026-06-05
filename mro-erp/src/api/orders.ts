@@ -145,8 +145,10 @@ export async function reverseSalesOrder(id: number): Promise<ApiResult<null>> {
  * Use after reversing stock, or for cancelled orders.
  */
 export async function deleteSalesOrder(id: number): Promise<ApiResult<null>> {
-  await supabase.from('payment_records').delete().eq('sales_order_id', id)
-  await supabase.from('sales_order_items').delete().eq('sales_order_id', id)
+  const { error: payErr } = await supabase.from('payment_records').delete().eq('sales_order_id', id)
+  if (payErr) return { data: null, error: `删除收款记录失败: ${payErr.message}` }
+  const { error: itemsErr } = await supabase.from('sales_order_items').delete().eq('sales_order_id', id)
+  if (itemsErr) return { data: null, error: `删除订单明细失败: ${itemsErr.message}` }
   const { error } = await supabase.from('sales_orders').delete().eq('id', id)
   return { data: null, error: error?.message ?? null }
 }
@@ -304,8 +306,10 @@ export async function saveSalesReturnItems(
   returnId: number,
   items: Omit<SalesReturnItem, 'id' | 'return_order_id' | 'line_total'>[]
 ): Promise<ApiResult<null>> {
-  await supabase.from('sales_return_items').delete().eq('return_order_id', returnId)
-  if (items.length === 0) return { data: null, error: null }
+  if (items.length === 0) {
+    const { error } = await supabase.from('sales_return_items').delete().eq('return_order_id', returnId)
+    return { data: null, error: error?.message ?? null }
+  }
 
   const records = items.map(i => ({
     return_order_id: returnId,
@@ -314,8 +318,23 @@ export async function saveSalesReturnItems(
     unit_price: i.unit_price
   }))
 
-  const { error } = await supabase.from('sales_return_items').insert(records as any[])
-  return { data: null, error: error?.message ?? null }
+  // Insert new items first (if fails, old data is intact)
+  const { error: insertErr } = await supabase.from('sales_return_items').insert(records as any[])
+  if (insertErr) return { data: null, error: insertErr.message }
+
+  // Delete old extras (keep only the newest N)
+  const { data: allItems } = await supabase
+    .from('sales_return_items')
+    .select('id')
+    .eq('return_order_id', returnId)
+    .order('id', { ascending: false })
+
+  if (allItems && allItems.length > records.length) {
+    const idsToDelete = allItems.slice(records.length).map((r: any) => r.id)
+    await supabase.from('sales_return_items').delete().in('id', idsToDelete)
+  }
+
+  return { data: null, error: null }
 }
 
 export async function createPayment(

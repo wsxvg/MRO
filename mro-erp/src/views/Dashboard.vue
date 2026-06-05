@@ -67,7 +67,7 @@
 
     <template v-else>
       <!-- KPI Cards -->
-      <div ref="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div ref="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <!-- 本月销售额 -->
         <div class="surface-strong p-4 kpi-card">
           <div class="flex items-center justify-between mb-2">
@@ -110,6 +110,19 @@
           <div ref="lowStockValueRef" class="text-2xl font-bold text-gray-900 mb-1">0</div>
           <div :class="lowStockCount > 0 ? 'text-red-500' : 'text-gray-400'" class="text-xs">
             {{ lowStockCount > 0 ? '需及时补货' : '库存充足' }}
+          </div>
+        </div>
+        <!-- 未收款总额 -->
+        <div class="surface-strong p-4 kpi-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">未收款总额</span>
+            <div class="w-7 h-7 bg-orange-50 rounded-lg flex items-center justify-center">
+              <i class="ri-money-cny-circle-line text-orange-500 text-xs"></i>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-gray-900 mb-1">¥{{ totalDebt.toLocaleString() }}</div>
+          <div :class="totalDebt > 0 ? 'text-orange-500' : 'text-gray-400'" class="text-xs">
+            {{ unpaidCustomers.length }} 个客户欠款
           </div>
         </div>
       </div>
@@ -179,49 +192,84 @@
         </div>
       </div>
 
-      <!-- Row 3: Pie + Pending -->
+      <!-- Row 3: Pending Deliveries + Pending Purchases -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <!-- Inventory Pie -->
+        <!-- 待发货订单 -->
         <div class="surface-strong p-5">
-          <h3 class="text-sm font-semibold text-gray-900 mb-4">库存分类分布</h3>
-          <div ref="pieRef" class="h-52 w-full" />
-          <div v-if="inventoryByCategory.length === 0" class="h-52 flex items-center justify-center text-sm text-gray-400 -mt-52">
-            暂无数据
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">
+              <i class="ri-truck-line text-amber-500 mr-1"></i>待发货
+              <span v-if="pendingDeliveries.length" class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ pendingDeliveries.length }}</span>
+            </h3>
+            <router-link to="/sales" class="text-xs text-gray-600 hover:text-gray-900 font-medium">查看全部</router-link>
+          </div>
+          <div v-if="pendingDeliveries.length === 0" class="py-6 text-center text-sm text-gray-400">暂无待发货</div>
+          <div v-else class="space-y-2">
+            <router-link v-for="d in pendingDeliveries" :key="d.id" :to="`/sales/${d.id}`"
+              class="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-gray-900">{{ d.customer_name }}</span>
+                  <span class="text-xs text-gray-400">{{ d.created_at }}</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-0.5 truncate">{{ d.item_summary }}</p>
+              </div>
+              <span class="text-sm font-semibold text-gray-900 flex-shrink-0 ml-3">¥{{ d.total_amount.toFixed(2) }}</span>
+            </router-link>
           </div>
         </div>
-        <!-- Pending / Alerts -->
+
+        <!-- 待到货采购 -->
         <div class="surface-strong p-5">
-          <h3 class="text-sm font-semibold text-gray-900 mb-4">待处理</h3>
-          <div class="space-y-3">
-            <div class="flex items-center justify-between p-3.5 bg-gray-100 rounded-lg">
-              <div>
-                <p class="text-sm font-medium text-gray-900">待确认销售单</p>
-                <p class="text-xs text-gray-500 mt-0.5">{{ pendingSO }} 单待处理</p>
-              </div>
-              <div class="w-9 h-9 rounded-lg bg-gray-200 flex items-center justify-center">
-                <span class="text-sm font-bold text-gray-700">{{ pendingSO }}</span>
-              </div>
-            </div>
-            <div class="flex items-center justify-between p-3.5 bg-red-50 rounded-lg">
-              <div>
-                <p class="text-sm font-medium text-gray-900">低库存商品</p>
-                <p class="text-xs text-gray-500 mt-0.5">低于安全库存</p>
-              </div>
-              <div class="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center">
-                <span class="text-sm font-bold text-red-500">{{ lowStockCount }}</span>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">
+              <i class="ri-inbox-unarchive-line text-blue-500 mr-1"></i>待到货
+              <span v-if="pendingPurchases.length" class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ pendingPurchases.length }}</span>
+            </h3>
+            <router-link to="/stock/in" class="text-xs text-gray-600 hover:text-gray-900 font-medium">去进货</router-link>
+          </div>
+          <div v-if="pendingPurchases.length === 0" class="py-6 text-center text-sm text-gray-400">暂无待到货</div>
+          <div v-else class="space-y-2">
+            <div v-for="p in pendingPurchases" :key="p.id" class="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-gray-900">{{ p.supplier_name }}</span>
+                  <span class="text-xs text-gray-400">{{ p.created_at }}</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-0.5 truncate">{{ p.item_summary }}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Row 4: Hot Products -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Row 4: Unpaid Customers -->
+      <div v-if="unpaidCustomers.length > 0" class="mb-6">
+        <div class="surface-strong p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">
+              <i class="ri-money-cny-circle-line text-orange-500 mr-1"></i>未收款客户
+              <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">{{ unpaidCustomers.length }}</span>
+            </h3>
+            <router-link to="/customers" class="text-xs text-gray-600 hover:text-gray-900 font-medium">去收款</router-link>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            <div v-for="c in unpaidCustomers" :key="c.customer_id"
+              class="flex items-center justify-between py-2.5 px-3 bg-orange-50/60 rounded-lg">
+              <span class="text-sm font-medium text-gray-900">{{ c.customer_name }}</span>
+              <span class="text-sm font-bold text-orange-600">¥{{ c.debt.toFixed(2) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 5: Hot Products -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- Hot by Quantity -->
         <div class="surface-strong p-5">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-semibold text-gray-900">
-              <i class="ri-fire-line text-orange-500 mr-1"></i>热销商品 TOP 10（按数量）
+              <i class="ri-fire-line text-orange-500 mr-1"></i>热销 TOP 10（数量）
             </h3>
           </div>
           <div v-if="hotByQuantity.length === 0" class="py-8 text-center text-sm text-gray-400">暂无数据</div>
@@ -257,6 +305,14 @@
               </div>
               <span class="text-sm font-semibold text-gray-900 flex-shrink-0">¥{{ item.total_amount.toLocaleString() }}</span>
             </div>
+          </div>
+        </div>
+        <!-- Inventory Pie -->
+        <div class="surface-strong p-5">
+          <h3 class="text-sm font-semibold text-gray-900 mb-4">库存分类分布</h3>
+          <div ref="pieRef" class="h-52 w-full" />
+          <div v-if="inventoryByCategory.length === 0" class="h-52 flex items-center justify-center text-sm text-gray-400 -mt-52">
+            暂无数据
           </div>
         </div>
       </div>
@@ -356,6 +412,8 @@ import {
   fetchProfitReport,
   fetchStockReport
 } from '@/api/reports'
+import { fetchSalesOrders, fetchSalesOrderItems } from '@/api/orders'
+import { fetchPurchaseOrders, fetchPurchaseOrderItems } from '@/api/purchaseOrders'
 import type { SlowProduct, Anomaly } from '@/api/reports'
 
 const loading = ref(true)
@@ -366,6 +424,12 @@ const monthlySales = ref(0)
 const salesChange = ref(0)
 const turnoverRate = ref(0)
 const lowStockCount = ref(0)
+const totalDebt = ref(0)
+
+// Pending deliveries & purchases
+const pendingDeliveries = ref<Array<{ id: number; order_no: string; customer_name: string; created_at: string; item_summary: string; total_amount: number }>>([])
+const pendingPurchases = ref<Array<{ id: number; supplier_name: string; created_at: string; item_summary: string }>>([])
+const unpaidCustomers = ref<Array<{ customer_id: number; customer_name: string; debt: number }>>([])
 
 // Low stock items with details
 const lowStockItems = ref<Array<{ id: number; name: string; stock: number; min_stock: number }>>([])
@@ -623,7 +687,7 @@ function renderAllCharts() {
 
 let resizeHandler: (() => void) | null = null
 
-async function loadData() {
+async function loadData(force = false) {
   loading.value = true
   try {
     const { dateFrom, dateTo } = getPeriodRange()
@@ -655,6 +719,9 @@ async function loadData() {
     if (trendRes.length > 0) {
       trendData.value = trendRes
       salesChange.value = calcChange(trendRes.map((d: any) => d.sales_amount))
+    } else {
+      trendData.value = []
+      salesChange.value = 0
     }
 
     if (inventoryRes.data) {
@@ -670,6 +737,71 @@ async function loadData() {
 
     slowProducts.value = slowRes.data ?? []
     anomalies.value = anomalyRes.data ?? []
+
+    // Fetch pending deliveries, pending purchases, and unpaid customers
+    const [pendingSORes, pendingPORes, allCompletedRes] = await Promise.all([
+      fetchSalesOrders({ status: 'pending' }),
+      fetchPurchaseOrders({ status: 'pending' }),
+      fetchSalesOrders({ status: 'completed' })
+    ])
+
+    // Pending deliveries with item summaries
+    if (pendingSORes.data) {
+      const withSummary = await Promise.all(
+        pendingSORes.data.map(async (order) => {
+          const itemsRes = await fetchSalesOrderItems(order.id)
+          const summary = (itemsRes.data ?? []).map((i: any) => `${i.product_name}×${i.quantity}`).join(', ')
+          return {
+            id: order.id,
+            order_no: order.order_no,
+            customer_name: order.customer_name || '零售',
+            created_at: order.created_at?.slice(0, 10) ?? '',
+            item_summary: summary,
+            total_amount: order.total_amount || 0
+          }
+        })
+      )
+      pendingDeliveries.value = withSummary
+      pendingSO.value = withSummary.length
+    }
+
+    // Pending purchases with item summaries
+    if (pendingPORes.data) {
+      const withSummary = await Promise.all(
+        pendingPORes.data.map(async (order) => {
+          const itemsRes = await fetchPurchaseOrderItems(order.id)
+          const summary = (itemsRes.data ?? []).map((i: any) => `${i.product_name}×${i.quantity}`).join(', ')
+          return {
+            id: order.id,
+            supplier_name: order.supplier_name || '未指定',
+            created_at: order.created_at?.slice(0, 10) ?? '',
+            item_summary: summary
+          }
+        })
+      )
+      pendingPurchases.value = withSummary
+    }
+
+    // Unpaid customers aggregation
+    if (allCompletedRes.data) {
+      const debtMap = new Map<number, { name: string; debt: number }>()
+      for (const order of allCompletedRes.data) {
+        if (!order.customer_id) continue
+        const due = (order.total_amount || 0) - (order.paid_amount || 0)
+        if (due > 0.01) {
+          const existing = debtMap.get(order.customer_id)
+          if (existing) {
+            existing.debt += due
+          } else {
+            debtMap.set(order.customer_id, { name: order.customer_name || '未知', debt: due })
+          }
+        }
+      }
+      unpaidCustomers.value = Array.from(debtMap.entries())
+        .map(([customer_id, v]) => ({ customer_id, customer_name: v.name, debt: Math.round(v.debt * 100) / 100 }))
+        .sort((a, b) => b.debt - a.debt)
+      totalDebt.value = unpaidCustomers.value.reduce((s, c) => s + c.debt, 0)
+    }
 
     // Low stock items with details
     const stockRes = await fetchStockReport()

@@ -204,7 +204,9 @@
             @leave="onLeave"
             mode="out-in"
           >
-            <component :is="Component" :key="route.path" />
+            <keep-alive :max="10">
+              <component :is="Component" :key="route.path" />
+            </keep-alive>
           </transition>
         </router-view>
       </main>
@@ -264,9 +266,10 @@ const pendingDeliveryCount = ref(0)
 
 const navItems = computed<NavItem[]>(() => [
   { label: '仪表板', path: '/dashboard', icon: 'home' },
-  { label: '商品管理', path: '/products', icon: 'cube' },
-  { label: '客户管理', path: '/customers', icon: 'users' },
+  { label: '库存查询', path: '/products', icon: 'cube' },
+  { label: '进货入库', path: '/stock/in', icon: 'download' },
   { label: '销售管理', path: '/sales', icon: 'receipt', badge: pendingDeliveryCount.value },
+  { label: '客户管理', path: '/customers', icon: 'users' },
   { label: '系统设置', path: '/settings/warehouses', icon: 'gear' },
 ])
 

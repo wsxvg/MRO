@@ -159,6 +159,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { fetchCustomers, deleteCustomer, batchDeleteCustomers, fetchSalesOrders, createPayment, updateSalesOrder } from '@/api'
+import { useCommonStore } from '@/stores/common'
 import { useDebounceFn } from '@/composables/useDebounce'
 import { highlightText } from '@/lib/utils'
 import type { Customer } from '@/types'
@@ -181,6 +182,7 @@ const columns = [
   { key: 'actions', label: '操作', align: 'right' as const }
 ]
 
+const commonStore = useCommonStore()
 const list = ref<Customer[]>([])
 const search = ref('')
 const typeFilter = ref('')
@@ -275,22 +277,28 @@ async function handleBatchDelete() {
 
 /** Load debt amounts for all customers on current page */
 async function loadDebts() {
-  const customerIds = list.value.map(c => c.id)
-  if (customerIds.length === 0) return
-
-  // Query all unpaid orders for current page's customers
-  const { data: orders } = await fetchSalesOrders({ status: 'completed' })
-  if (!orders) return
-
-  const debts: Record<number, number> = {}
-  for (const order of orders) {
-    if (!order.customer_id) continue
-    const due = (order.total_amount || 0) - (order.paid_amount || 0)
-    if (due > 0.01) {
-      debts[order.customer_id] = (debts[order.customer_id] ?? 0) + due
+  try {
+    // Paginate through ALL completed orders to calculate accurate debt
+    const debts: Record<number, number> = {}
+    let page = 1
+    let hasMore = true
+    while (hasMore) {
+      const { data: orders } = await fetchSalesOrders({ status: 'completed', page, limit: 200 })
+      if (!orders || orders.length === 0) break
+      for (const order of orders) {
+        if (!order.customer_id) continue
+        const due = (order.total_amount || 0) - (order.paid_amount || 0)
+        if (due > 0.01) {
+          debts[order.customer_id] = (debts[order.customer_id] ?? 0) + due
+        }
+      }
+      hasMore = orders.length === 200
+      page++
     }
+    debtMap.value = debts
+  } catch (e) {
+    console.error('加载欠款数据失败', e)
   }
-  debtMap.value = debts
 }
 
 /** Open payment collection popup for a customer */
@@ -322,6 +330,7 @@ async function openPayment(customer: Customer) {
 
 /** Submit payment collection */
 async function submitPayment() {
+  if (paymentPopup.saving) return  // Prevent double-submit
   const ordersToPay = paymentPopup.orders.filter(o => o.pay_amount > 0)
   if (ordersToPay.length === 0) {
     paymentPopup.error = '请输入收款金额'
@@ -357,8 +366,9 @@ async function submitPayment() {
     }
 
     paymentPopup.visible = false
-    // Refresh debt data
+    // Refresh debt data and invalidate shared cache
     await loadDebts()
+    commonStore.invalidate('customers')
   } catch (e: unknown) {
     paymentPopup.error = e instanceof Error ? e.message : '收款失败'
   } finally {

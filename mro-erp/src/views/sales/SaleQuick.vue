@@ -35,7 +35,7 @@
 
         <!-- Cart Items (scrollable) -->
         <div v-if="items.length > 0" class="flex-1 overflow-y-auto px-4 py-2 space-y-1">
-          <div v-for="(item, idx) in items" :key="idx" class="flex items-center gap-2 py-2.5 border-b border-gray-50 last:border-0">
+          <div v-for="(item, idx) in items" :key="item.product_id" class="flex items-center gap-2 py-2.5 border-b border-gray-50 last:border-0">
             <span v-if="item.cost_price > 0 && item.unit_price < item.cost_price"
               class="text-sm flex-shrink-0" title="💀 低于进价！">💀</span>
             <span v-else
@@ -86,7 +86,7 @@
             <button class="w-full btn-primary py-3 text-base font-semibold" :disabled="saving || items.length === 0" @click="handleQuickSale('paid')">
               {{ saving ? '保存中...' : '💰 收钱完成' }}
             </button>
-            <button class="w-full btn-secondary py-3 text-base font-semibold" :disabled="saving || items.length === 0" @click="handleQuickSale('credit')">
+            <button class="w-full btn-secondary py-3 text-base font-semibold" :disabled="saving || items.length === 0" @click="openCreditPopup">
               {{ saving ? '保存中...' : '📝 记账' }}
             </button>
           </div>
@@ -173,7 +173,7 @@
     </div>
 
     <!-- Warehouse Selection Popup (when shop stock insufficient) -->
-    <div v-if="warehousePopup.visible" class="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+    <div v-if="warehousePopup.visible" class="fixed inset-0 bg-black/20 flex items-center justify-center z-50" @click.self="warehousePopup.visible = false">
       <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
         <h3 class="text-lg font-semibold text-gray-900 mb-1">门店库存不足</h3>
         <p class="text-sm text-gray-500 mb-4">以下商品需要从仓库补货，请选择从哪个仓库扣减：</p>
@@ -210,6 +210,39 @@
         </div>
       </div>
     </div>
+
+    <!-- Credit Mode Popup -->
+    <div v-if="creditPopup.visible" class="fixed inset-0 bg-black/20 flex items-center justify-center z-50" @click.self="creditPopup.visible = false">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+        <div class="flex justify-end -mt-2 -mr-2 mb-1">
+          <button class="text-gray-400 hover:text-gray-600 p-1" @click="creditPopup.visible = false">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <span class="text-2xl">📝</span>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-1">记账确认</h3>
+        <p class="text-sm text-gray-500 mb-1">
+          客户：<span class="font-medium text-gray-900">{{ creditPopup.customerName }}</span>
+        </p>
+        <p class="text-2xl font-bold text-gray-900 mb-5">¥{{ total.toFixed(2) }}</p>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button class="w-full py-3 px-4 rounded-xl border-2 border-gray-200 text-gray-700 font-medium hover:border-gray-900 hover:bg-gray-50 transition-colors"
+            :disabled="creditPopup.saving" @click="handleCreditConfirm('picked_up')">
+            ✅ 已取走
+          </button>
+          <button class="w-full py-3 px-4 rounded-xl border-2 border-gray-200 text-gray-700 font-medium hover:border-amber-500 hover:bg-amber-50 transition-colors"
+            :disabled="creditPopup.saving" @click="handleCreditConfirm('delivery')">
+            🚚 需要送货
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-3">「已取走」直接扣库存 · 「需要送货」稍后再扣</p>
+
+        <div v-if="creditPopup.error" class="mt-3 text-sm text-red-600">{{ creditPopup.error }}</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -218,14 +251,16 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useDebounceFn } from '@/composables/useDebounce'
-import { fetchCustomers, fetchCustomerPrices } from '@/api'
-import { fetchDefaultWarehouse, fetchStockByProduct } from '@/api'
-import { fetchProducts, fetchCategories } from '@/api'
-import { createSalesOrder, saveSalesOrderItems, completeSalesOrder, completeSalesOrderWithWarehouses } from '@/api'
+import { useCommonStore } from '@/stores/common'
+import { fetchCustomerPrices, fetchStockByProduct } from '@/api'
+import { fetchDefaultWarehouse } from '@/api'
+import { fetchProducts } from '@/api'
+import { createSalesOrder, saveSalesOrderItems, completeSalesOrder, completeSalesOrderWithWarehouses, deleteSalesOrder } from '@/api'
 import { fetchHotProducts } from '@/api/reports'
 import type { Customer, Product, Category } from '@/types'
 
 const router = useRouter()
+const commonStore = useCommonStore()
 const saving = ref(false); const error = ref(''); const success = ref('')
 const defaultWarehouseId = ref<number | null>(null)
 const customers = ref<Customer[]>([])
@@ -237,6 +272,8 @@ const hoveredProductId = ref<number | null>(null)
 const frequentProducts = ref<Product[]>([])
 const productsLoading = ref(false)
 const customerPricesMap = new Map<number, number>()
+let customerChangeVersion = 0  // #12: guard against concurrent calls
+const productPricesCache = new Map<number, number>()  // #14: cache all product prices for reset
 const productStocks = reactive<Record<number, { warehouse_id: number; warehouse_name: string; quantity: number }[]>>({})
 
 const form = reactive({
@@ -264,6 +301,14 @@ const warehousePopup = reactive({
   }>
 })
 
+// Credit mode popup state
+const creditPopup = reactive({
+  visible: false,
+  saving: false,
+  error: '',
+  customerName: '零售客户'
+})
+
 const customerOptions = computed(() => [
   { value: '', label: '默认零售' },
   ...customers.value.map(c => ({ value: c.id, label: c.name }))
@@ -272,12 +317,17 @@ const customerOptions = computed(() => [
 /** Load products from server with optional filters */
 async function loadProducts(opts?: { search?: string; category_id?: number; limit?: number }) {
   productsLoading.value = true
-  const params: Record<string, any> = { limit: opts?.limit ?? 30 }
-  if (opts?.search) params.search = opts.search
-  if (opts?.category_id) params.category_id = opts.category_id
-  const res = await fetchProducts(params)
-  displayProducts.value = res.data ?? []
-  productsLoading.value = false
+  try {
+    const params: Record<string, any> = { limit: opts?.limit ?? 30 }
+    if (opts?.search) params.search = opts.search
+    if (opts?.category_id) params.category_id = opts.category_id
+    const res = await fetchProducts(params)
+    displayProducts.value = res.data ?? []
+  } catch (e) {
+    console.error('加载商品失败', e)
+  } finally {
+    productsLoading.value = false
+  }
 }
 
 /** Switch category tab */
@@ -326,7 +376,7 @@ function clearCart() {
 
 function marginColor(item: { unit_price: number; cost_price: number }): string {
   if (item.cost_price <= 0) return 'bg-gray-300'
-  if (item.unit_price < item.cost_price) return 'bg-gray-900'
+  if (item.unit_price <= 0 || item.unit_price < item.cost_price) return 'bg-gray-900'
   const margin = (item.unit_price - item.cost_price) / item.unit_price
   if (margin >= 0.3) return 'bg-green-500'
   if (margin >= 0.1) return 'bg-amber-400'
@@ -335,6 +385,7 @@ function marginColor(item: { unit_price: number; cost_price: number }): string {
 
 function marginTip(item: { unit_price: number; cost_price: number; product_name: string }): string {
   if (item.cost_price <= 0) return '未知进价'
+  if (item.unit_price <= 0) return '💀 无售价！'
   if (item.unit_price < item.cost_price) return '💀 低于进价！'
   const margin = ((item.unit_price - item.cost_price) / item.unit_price * 100).toFixed(0)
   return `毛利 ${margin}%`
@@ -342,19 +393,36 @@ function marginTip(item: { unit_price: number; cost_price: number; product_name:
 
 async function onCustomerChange(customerId: string | number | null) {
   customerPricesMap.clear()
-  if (!customerId) return
-  const { data } = await fetchCustomerPrices(Number(customerId))
-  if (data) {
-    for (const cp of data) {
-      customerPricesMap.set(cp.product_id, cp.price)
+  const version = ++customerChangeVersion  // #12: track this call
+  if (!customerId) {
+    // Switched to retail: reset all cart items to cached default prices
+    for (const item of items) {
+      const defaultPrice = productPricesCache.get(item.product_id) ?? 0
+      item.unit_price = defaultPrice
+      calcLine(items.indexOf(item))
     }
+    return
+  }
+  try {
+    const { data } = await fetchCustomerPrices(Number(customerId))
+    if (version !== customerChangeVersion) return  // #12: stale response, discard
+    if (data) {
+      for (const cp of data) {
+        customerPricesMap.set(cp.product_id, cp.price)
+      }
+    }
+    // Update ALL cart items: use customer price if available, otherwise cached default
     for (const item of items) {
       const cp = customerPricesMap.get(item.product_id)
       if (cp !== undefined) {
         item.unit_price = cp
-        calcLine(items.indexOf(item))
+      } else {
+        item.unit_price = productPricesCache.get(item.product_id) ?? 0
       }
+      calcLine(items.indexOf(item))
     }
+  } catch (e) {
+    console.error('加载客户价格失败', e)
   }
 }
 
@@ -407,7 +475,6 @@ async function handleQuickSale(paymentMode: 'paid' | 'credit') {
       if (shopStock < item.quantity) {
         const otherWarehouses = stocks.filter((s: any) => s.warehouse_id !== shopId && s.quantity > 0)
         if (otherWarehouses.length === 0) {
-          // No warehouse has stock either — proceed anyway (allow negative)
           continue
         }
         insufficient.push({
@@ -422,7 +489,6 @@ async function handleQuickSale(paymentMode: 'paid' | 'credit') {
     }
 
     if (insufficient.length > 0) {
-      // Show warehouse selection popup
       warehousePopup.items = insufficient
       warehousePopup.paymentMode = paymentMode
       warehousePopup.error = ''
@@ -431,7 +497,6 @@ async function handleQuickSale(paymentMode: 'paid' | 'credit') {
       return
     }
 
-    // All items have enough shop stock — proceed directly
     await submitOrder(shopId, paymentMode)
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : '网络错误'
@@ -439,11 +504,46 @@ async function handleQuickSale(paymentMode: 'paid' | 'credit') {
   }
 }
 
+/** Open credit popup - shows customer name and total */
+function openCreditPopup() {
+  if (saving.value || items.length === 0) return
+  const selected = customers.value.find(c => c.id === form.customer_id)
+  creditPopup.customerName = selected?.name ?? '零售客户'
+  creditPopup.error = ''
+  creditPopup.visible = true
+}
+
+/** Handle credit popup confirmation */
+async function handleCreditConfirm(mode: 'picked_up' | 'delivery') {
+  creditPopup.saving = true
+  creditPopup.error = ''
+
+  const shopId = defaultWarehouseId.value
+  if (!shopId) {
+    creditPopup.error = '未配置默认门店仓库'
+    creditPopup.saving = false
+    return
+  }
+
+  creditPopup.visible = false
+
+  try {
+    if (mode === 'delivery') {
+      await submitPendingOrder(shopId)
+    } else {
+      await handleQuickSale('credit')
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '操作失败'
+  } finally {
+    creditPopup.saving = false
+  }
+}
+
 async function confirmWarehouseSelection() {
   if (warehousePopup.saving) return
   warehousePopup.saving = true; warehousePopup.error = ''
 
-  // Check all items have a selected warehouse
   const unselected = warehousePopup.items.find(i => !i.selected_warehouse_id)
   if (unselected) {
     warehousePopup.error = `请选择「${unselected.product_name}」的出货仓库`
@@ -453,15 +553,19 @@ async function confirmWarehouseSelection() {
 
   warehousePopup.visible = false
 
-  // Build warehouse mapping: product_id → warehouse_id
-  const shopId = defaultWarehouseId.value!
-  const warehouseMap = new Map<number, number>()
-  warehouseMap.set(shopId, shopId) // default to shop
-  for (const item of warehousePopup.items) {
-    warehouseMap.set(item.product_id, item.selected_warehouse_id!)
+  try {
+    const shopId = defaultWarehouseId.value!
+    const warehouseMap = new Map<number, number>()
+    warehouseMap.set(shopId, shopId)
+    for (const item of warehousePopup.items) {
+      warehouseMap.set(item.product_id, item.selected_warehouse_id!)
+    }
+    await submitOrder(shopId, warehousePopup.paymentMode, warehouseMap)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '出货失败'
+  } finally {
+    warehousePopup.saving = false
   }
-
-  await submitOrder(shopId, warehousePopup.paymentMode, warehouseMap)
 }
 
 async function submitOrder(
@@ -491,19 +595,70 @@ async function submitOrder(
       quantity: i.quantity,
       unit_price: i.unit_price,
       cost_price: i.cost_price,
-      // Use specific warehouse if mapped, otherwise default
       warehouse_id: warehouseMap?.get(i.product_id) ?? defaultWarehouseId
     }))
     const itemRes = await saveSalesOrderItems(orderId, itemData)
-    if (itemRes.error) { error.value = itemRes.error; saving.value = false; return }
+    if (itemRes.error) {
+      // Clean up orphaned order
+      await deleteSalesOrder(orderId)
+      error.value = itemRes.error; saving.value = false; return
+    }
 
     const completeRes = warehouseMap && warehouseMap.size > 0
       ? await completeSalesOrderWithWarehouses(orderId, Object.fromEntries(warehouseMap))
       : await completeSalesOrder(orderId)
-    if (completeRes.error) { error.value = completeRes.error; saving.value = false; return }
+    if (completeRes.error) {
+      // Clean up: delete order with items (stock wasn't deducted yet)
+      await deleteSalesOrder(orderId)
+      error.value = completeRes.error; saving.value = false; return
+    }
 
     items.splice(0, items.length)
+    // Clear stock cache since quantities changed
+    Object.keys(productStocks).forEach(k => delete productStocks[Number(k)])
+    // Invalidate shared caches
+    commonStore.invalidate('products')
     success.value = paymentMode === 'paid' ? '收钱完成！' : '记账完成！'
+    setTimeout(() => router.push('/sales'), 1000)
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : '网络错误'
+  } finally { saving.value = false }
+}
+
+/** Create a pending order for delivery (no stock deduction) */
+async function submitPendingOrder(shopId: number) {
+  saving.value = true; error.value = ''; success.value = ''
+  try {
+    const data: Record<string, any> = {
+      warehouse_id: shopId,
+      total_amount: total.value,
+      paid_amount: 0,
+      remark: form.remark || null,
+      needs_delivery: true,
+      status: 'pending'
+    }
+    if (form.customer_id) {
+      data.customer_id = form.customer_id
+    }
+    const orderRes = await createSalesOrder(data as any)
+    if (!orderRes.data) { error.value = orderRes.error || '保存失败'; saving.value = false; return }
+
+    const orderId = orderRes.data.id
+    const itemData = items.map(i => ({
+      product_id: i.product_id,
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+      cost_price: i.cost_price
+    }))
+    const itemRes = await saveSalesOrderItems(orderId, itemData)
+    if (itemRes.error) {
+      await deleteSalesOrder(orderId)
+      error.value = itemRes.error; saving.value = false; return
+    }
+
+    // Don't complete - keep as pending for delivery
+    items.splice(0, items.length)
+    success.value = '已创建待发货订单！'
     setTimeout(() => router.push('/sales'), 1000)
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : '网络错误'
@@ -513,13 +668,13 @@ async function submitOrder(
 onMounted(async () => {
   const [defRes, cRes, catRes, hotRes] = await Promise.all([
     fetchDefaultWarehouse(),
-    fetchCustomers({}),
-    fetchCategories(),
+    commonStore.getCustomers(),
+    commonStore.getCategories(),
     fetchHotProducts()
   ])
   if (defRes.data) defaultWarehouseId.value = defRes.data.id
-  if (cRes.data) customers.value = cRes.data
-  if (catRes.data) categories.value = catRes.data
+  customers.value = cRes
+  categories.value = catRes
 
   // Build frequent products bar from hot data
   if (hotRes.data?.by_quantity) {
@@ -528,9 +683,15 @@ onMounted(async () => {
     if (hotProductRes.data) {
       frequentProducts.value = hotProductRes.data.filter(p => hotNames.has(p.name)).slice(0, 8)
       displayProducts.value = hotProductRes.data.slice(0, 30)
+      for (const p of hotProductRes.data) {
+        productPricesCache.set(p.id, p.reference_price || 0)
+      }
     }
   } else {
     await loadProducts({ limit: 30 })
+    for (const p of displayProducts.value) {
+      productPricesCache.set(p.id, p.reference_price || 0)
+    }
   }
 })
 </script>

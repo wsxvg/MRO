@@ -6,7 +6,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
       </router-link>
-      <h1 class="text-2xl font-bold text-gray-900">进货</h1>
+      <h1 class="text-2xl font-bold text-gray-900">进货入库</h1>
     </div>
 
     <div class="max-w-4xl space-y-6">
@@ -92,12 +92,12 @@
                 <label class="label text-xs">商品 <span class="text-red-500">*</span></label>
                 <div class="relative">
                   <input v-model="row.product_name" type="text" class="input text-sm"
-                    placeholder="输入商品名称（新商品自动创建）"
+                    placeholder="输入商品名称（已有商品自动匹配）"
                     @input="onProductNameInput(i)"
                     @focus="row.showSuggestions = true"
                     @blur="hideSuggestions(i)" />
                   <div v-if="row.showSuggestions && row.suggestions.length > 0"
-                    class="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
+                    class="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
                     <div v-for="p in row.suggestions" :key="p.id"
                       class="px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0"
                       @mousedown.prevent="selectProduct(i, p)">
@@ -108,11 +108,15 @@
                         </div>
                         <span class="text-gray-600 flex-shrink-0 ml-3">¥{{ (p.reference_price || 0).toFixed(2) }}</span>
                       </div>
-                      <div v-if="p.category_name" class="text-xs text-gray-400 mt-0.5">{{ p.category_name }}</div>
+                      <div class="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                        <span v-if="(p as any).category_name">{{ (p as any).category_name }}</span>
+                        <span v-if="p.cost_price > 0">进价 ¥{{ p.cost_price.toFixed(2) }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
                 <p v-if="row.is_new" class="text-xs text-blue-600 mt-1">新商品，将自动创建</p>
+                <p v-else-if="row.product_id" class="text-xs text-green-600 mt-1">✓ 已匹配</p>
               </div>
               <div class="w-24">
                 <label class="label text-xs">数量 <span class="text-red-500">*</span></label>
@@ -124,6 +128,23 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
+              </div>
+            </div>
+
+            <!-- 分类 + 规格 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="label text-xs">分类</label>
+                <div class="flex gap-2">
+                  <input v-model="row.category_name" type="text" class="input text-sm flex-1"
+                    placeholder="输入或选择分类"
+                    list="category-list"
+                    @change="onCategoryInput(i, $event)" />
+                </div>
+              </div>
+              <div>
+                <label class="label text-xs">规格</label>
+                <input v-model="row.specification" type="text" class="input text-sm" placeholder="如：6205-2RS" />
               </div>
             </div>
 
@@ -163,6 +184,11 @@
 
       <!-- 提交 -->
       <div v-if="rows.length > 0" class="space-y-3">
+
+      <!-- Category datalist for autocomplete -->
+      <datalist id="category-list">
+        <option v-for="cat in categories" :key="cat.id" :value="cat.name" />
+      </datalist>
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" v-model="isOrderedOnly" class="rounded border-gray-300" />
           <span class="text-sm text-gray-700">货还没到（仅下单，到货后再确认入库）</span>
@@ -256,14 +282,18 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { fetchWarehouses, fetchProducts, createProduct, batchCreateStockIn, suppliersApi, fetchAllSuppliers, fetchStockLots } from '@/api'
+import { fetchWarehouses, fetchProducts, createProduct, batchCreateStockIn, suppliersApi, fetchAllSuppliers, fetchStockLots, fetchCategories, createCategory } from '@/api'
 import { createPurchaseOrder, fetchPurchaseOrders, fetchPurchaseOrderItems, completePurchaseOrder, cancelPurchaseOrder } from '@/api/purchaseOrders'
+import { useCommonStore } from '@/stores/common'
 import type { Warehouse, Product, Supplier } from '@/types'
 import type { PurchaseOrder } from '@/api/purchaseOrders'
 
 interface StockInRow {
   product_id: number | null
   product_name: string
+  specification: string
+  category_id: number | null
+  category_name: string
   quantity: number
   selling_price: number
   unit_cost: number
@@ -274,9 +304,16 @@ interface StockInRow {
   suggestions: Product[]
 }
 
+interface Category {
+  id: number
+  name: string
+}
+
+const commonStore = useCommonStore()
 const warehouses = ref<Warehouse[]>([])
 const allProducts = ref<Product[]>([])
 const suppliers = ref<Supplier[]>([])
+const categories = ref<Category[]>([])
 const warehouseId = ref<number | null>(null)
 const supplierId = ref<number | null>(null)
 const rows = ref<StockInRow[]>([])
@@ -320,6 +357,9 @@ function addRow() {
   rows.value.push({
     product_id: null,
     product_name: '',
+    specification: '',
+    category_id: null,
+    category_name: '',
     quantity: 1,
     selling_price: 0,
     unit_cost: 0,
@@ -353,15 +393,17 @@ function onProductNameInput(i: number) {
   if (exact) {
     row.is_new = false
     row.product_id = exact.id
+    row.specification = exact.specification || ''
+    row.category_id = exact.category_id ?? null
+    row.category_name = (exact as any).category_name || ''
     row.selling_price = exact.reference_price || 0
-    // Fill last cost price
     const lastCost = lastCostMap.get(exact.id)
     if (lastCost) {
       row.unit_cost = lastCost.cost
       row.is_estimated = lastCost.is_estimated
     } else if (exact.cost_price > 0) {
       row.unit_cost = exact.cost_price
-      row.is_estimated = exact.cost_price_auto ?? false
+      row.is_estimated = (exact as any).cost_price_auto ?? false
     }
   } else {
     row.is_new = true
@@ -373,16 +415,18 @@ function selectProduct(i: number, product: Product) {
   const row = rows.value[i]
   row.product_id = product.id
   row.product_name = product.name
+  row.specification = product.specification || ''
+  row.category_id = (product as any).category_id ?? null
+  row.category_name = (product as any).category_name || ''
   row.is_new = false
   row.selling_price = product.reference_price || 0
-  // Fill last cost price
   const lastCost = lastCostMap.get(product.id)
   if (lastCost) {
     row.unit_cost = lastCost.cost
     row.is_estimated = lastCost.is_estimated
   } else if (product.cost_price > 0) {
     row.unit_cost = product.cost_price
-    row.is_estimated = product.cost_price_auto ?? false
+    row.is_estimated = (product as any).cost_price_auto ?? false
   }
   row.suggestions = []
   row.showSuggestions = false
@@ -392,17 +436,55 @@ function hideSuggestions(i: number) {
   setTimeout(() => { rows.value[i].showSuggestions = false }, 200)
 }
 
+function onCategoryInput(i: number, event: Event) {
+  const row = rows.value[i]
+  const value = (event.target as HTMLInputElement).value.trim()
+  const existing = categories.value.find(c => c.name === value)
+  if (existing) {
+    row.category_id = existing.id
+    row.category_name = existing.name
+  } else {
+    row.category_id = null
+    row.category_name = value
+  }
+}
+
 async function doSubmit() {
   if (!canSubmit.value || !warehouseId.value) return
   saving.value = true
   result.value = null
 
   try {
-    // Step 1: Create new products
+    // Step 1: Create new products (with category handling)
     for (const row of rows.value) {
       if (row.is_new && !row.product_id) {
+        // Resolve category_id
+        let categoryId = row.category_id
+        if (!categoryId && row.category_name.trim()) {
+          // Exact match against loaded categories (case-sensitive)
+          const existing = categories.value.find(c => c.name === row.category_name.trim())
+          if (existing) {
+            categoryId = existing.id
+          } else {
+            // Create new category (API already checks for duplicates)
+            const { data: catData, error: catErr } = await createCategory({ name: row.category_name.trim(), sort_order: 999 } as any)
+            if (catData) {
+              categoryId = catData.id
+              categories.value.push(catData as any)
+            } else if (catErr && catErr.includes('已存在')) {
+              // Race condition: another process created it. Reload and find.
+              const catRes = await fetchCategories()
+              if (catRes.data) categories.value = catRes.data as any
+              const found = categories.value.find(c => c.name === row.category_name.trim())
+              if (found) categoryId = found.id
+            }
+          }
+        }
+
         const { data, error } = await createProduct({
           name: row.product_name.trim(),
+          specification: row.specification.trim() || null,
+          category_id: categoryId,
           reference_price: row.selling_price,
           cost_price: row.unit_cost || 0,
           cost_price_auto: row.unit_cost <= 0,
@@ -437,6 +519,7 @@ async function doSubmit() {
       } else {
         result.value = {}
         rows.value = []
+        commonStore.invalidate('products')
         fetchPending()
       }
     } else {
@@ -456,6 +539,7 @@ async function doSubmit() {
       } else {
         result.value = {}
         rows.value = []
+        commonStore.invalidate('products')
       }
     }
   } catch (e: any) {
@@ -488,12 +572,19 @@ async function confirmReceive() {
       is_estimated: item.is_estimated || item.unit_cost <= 0,
     }
   }
-  const { error } = await completePurchaseOrder(receiveDialog.orderId, priceOverrides)
-  if (!error) {
-    receiveDialog.visible = false
-    fetchPending()
+  try {
+    const { error } = await completePurchaseOrder(receiveDialog.orderId, priceOverrides)
+    if (error) {
+      result.value = { error: `入库失败: ${error}` }
+    } else {
+      receiveDialog.visible = false
+      fetchPending()
+    }
+  } catch (e) {
+    result.value = { error: e instanceof Error ? e.message : '入库失败' }
+  } finally {
+    receiveDialog.saving = false
   }
-  receiveDialog.saving = false
 }
 
 async function handleCancelOrder(orderId: number) {
@@ -555,14 +646,16 @@ async function loadLastCostPrices() {
 }
 
 onMounted(async () => {
-  const [whRes, prodRes, supRes] = await Promise.all([
+  const [whRes, prodRes, supRes, catRes] = await Promise.all([
     fetchWarehouses(),
     fetchProducts({ limit: 5000 }),
     fetchAllSuppliers(),
+    fetchCategories(),
   ])
   if (whRes.data) warehouses.value = whRes.data
   if (prodRes.data) allProducts.value = prodRes.data
   if (supRes.data) suppliers.value = supRes.data
+  if (catRes.data) categories.value = catRes.data as any
   fetchPending()
   loadLastCostPrices()
 })
