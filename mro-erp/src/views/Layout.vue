@@ -219,6 +219,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { fetchSalesOrders } from '@/api'
+import { fetchPurchaseOrders } from '@/api/purchaseOrders'
 import gsap from 'gsap'
 
 // Page transition animations
@@ -263,11 +264,12 @@ interface NavItem {
 }
 
 const pendingDeliveryCount = ref(0)
+const pendingPurchaseCount = ref(0)
 
 const navItems = computed<NavItem[]>(() => [
   { label: '仪表板', path: '/dashboard', icon: 'home' },
   { label: '库存查询', path: '/products', icon: 'cube' },
-  { label: '进货入库', path: '/stock/in', icon: 'download' },
+  { label: '进货入库', path: '/stock/in', icon: 'download', badge: pendingPurchaseCount.value },
   { label: '销售管理', path: '/sales', icon: 'receipt', badge: pendingDeliveryCount.value },
   { label: '客户管理', path: '/customers', icon: 'users' },
   { label: '系统设置', path: '/settings/warehouses', icon: 'gear' },
@@ -305,8 +307,12 @@ function handleLogout() {
 }
 
 async function fetchPendingCount() {
-  const res = await fetchSalesOrders({ status: 'pending' })
-  pendingDeliveryCount.value = res.data?.length ?? 0
+  const [salesRes, purchaseRes] = await Promise.all([
+    fetchSalesOrders({ status: 'pending' }),
+    fetchPurchaseOrders({ status: 'pending' })
+  ])
+  pendingDeliveryCount.value = salesRes.data?.length ?? 0
+  pendingPurchaseCount.value = purchaseRes.data?.length ?? 0
 }
 
 onMounted(() => {
