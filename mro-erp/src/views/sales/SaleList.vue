@@ -3,8 +3,7 @@
     <BasePageHeader title="销售管理">
       <div class="flex gap-3">
         <button class="btn-secondary text-sm" @click="showStatementDialog = true">导出对账单</button>
-        <router-link to="/sales/new" class="btn-secondary text-sm">新增销售单</router-link>
-        <router-link to="/sales/quick" class="btn-primary text-sm">快速收银</router-link>
+        <router-link to="/sales/quick" class="btn-primary text-sm">🏪 销售商品</router-link>
       </div>
     </BasePageHeader>
 
@@ -69,6 +68,7 @@
             <option value="">全部状态</option>
             <option value="completed">已完成</option>
             <option value="returned">已退货</option>
+            <option value="cancelled">已撤回</option>
           </select>
         </div>
       </div>
@@ -118,11 +118,15 @@
       <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">订单详情</h3>
-          <button class="text-gray-400 hover:text-gray-600" @click="detailVisible = false">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div class="flex items-center gap-2">
+            <button v-if="detailOrder" class="btn-secondary text-sm" @click="printDeliveryVisible = true">🖨️ 打印送货单</button>
+            <button v-if="detailOrder" class="btn-secondary text-sm" @click="printQuoteVisible = true">📋 生成报价单</button>
+            <button class="text-gray-400 hover:text-gray-600" @click="detailVisible = false">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div v-if="detailLoading" class="text-center py-8 text-gray-400">加载中...</div>
@@ -244,15 +248,33 @@
         </div>
       </div>
     </div>
+
+    <!-- Print Delivery Note -->
+    <PrintDeliveryNote
+      :visible="printDeliveryVisible"
+      :order="detailOrder ?? {} as SalesOrder"
+      :items="detailItems"
+      @close="printDeliveryVisible = false"
+    />
+
+    <!-- Print Quote -->
+    <PrintQuote
+      :visible="printQuoteVisible"
+      :order="detailOrder ?? {} as SalesOrder"
+      :items="detailItems"
+      @close="printQuoteVisible = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { fetchSalesOrders, fetchSalesOrderItems, completeSalesOrder, updateSalesOrder, createSalesReturn, saveSalesReturnItems, completeSalesReturn, reverseSalesOrder, fetchCustomers } from '@/api'
+import { fetchSalesOrders, fetchSalesOrderItems, completeSalesOrder, updateSalesOrder, createSalesReturn, saveSalesReturnItems, completeSalesReturn, reverseSalesOrder, deleteSalesOrder, fetchCustomers } from '@/api'
 import { fetchStatementData, exportStatementExcel } from '@/lib/statementExport'
 import type { SalesOrder, SalesOrderItem, Customer } from '@/types'
 import BasePageHeader from '@/components/BasePageHeader.vue'
+import PrintDeliveryNote from '@/views/sales/PrintDeliveryNote.vue'
+import PrintQuote from '@/views/sales/PrintQuote.vue'
 
 // Pending deliveries
 const pendingOrders = ref<(SalesOrder & { item_summary?: string })[]>([])
@@ -276,6 +298,10 @@ const returnError = ref('')
 const returnOrder = ref<SalesOrder | null>(null)
 const returnItems = ref<(SalesOrderItem & { return_qty: number })[]>([])
 const hasReturnItems = computed(() => returnItems.value.some(i => i.return_qty > 0))
+
+// Print delivery note
+const printDeliveryVisible = ref(false)
+const printQuoteVisible = ref(false)
 
 // Statement export
 const showStatementDialog = ref(false)
@@ -319,8 +345,12 @@ async function fetchCompleted() {
   const res = await fetchSalesOrders({
     status: statusFilter.value || undefined,
   })
-  // Filter out pending from completed list
-  completedOrders.value = (res.data ?? []).filter(o => o.status !== 'pending')
+  // Filter out pending; also filter out cancelled unless explicitly selected
+  completedOrders.value = (res.data ?? []).filter(o => {
+    if (o.status === 'pending') return false
+    if (o.status === 'cancelled' && statusFilter.value !== 'cancelled') return false
+    return true
+  })
   completedLoading.value = false
 }
 
@@ -343,14 +373,13 @@ async function viewOrder(orderId: number) {
 }
 
 async function handleRevoke(orderId: number) {
-  if (!confirm('确定撤回此订单？库存将恢复。')) return
+  if (!confirm('确定撤回此订单？库存将恢复，订单将被删除。')) return
   const { error } = await reverseSalesOrder(orderId)
-  if (!error) {
-    fetchPending()
-    fetchCompleted()
-  } else {
-    alert('撤回失败: ' + error)
-  }
+  if (error) { alert('撤回失败: ' + error); return }
+  // Stock restored, now delete the order entirely
+  await deleteSalesOrder(orderId)
+  fetchPending()
+  fetchCompleted()
 }
 
 async function openReturn(order: SalesOrder) {

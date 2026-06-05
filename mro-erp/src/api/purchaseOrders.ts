@@ -124,8 +124,8 @@ export async function completePurchaseOrder(
 
   if (!order) return { data: null, error: '采购单不存在' }
 
+  // Process items - if any fails, return error early (remaining items won't be processed)
   for (const item of items as any[]) {
-    // Use override price if provided, otherwise use original
     const override = priceOverrides?.[item.product_id]
     const unitCost = override?.unit_cost ?? item.unit_cost ?? 0
     const isEstimated = override?.is_estimated ?? (item.is_estimated || item.unit_cost <= 0)
@@ -139,10 +139,10 @@ export async function completePurchaseOrder(
       p_supplier_id: null,
       p_remark: null,
     } as any)
-    if (error) return { data: null, error: error.message }
+    if (error) return { data: null, error: `入库失败(商品#${item.product_id}): ${error.message}` }
   }
 
-  // 4. Update order status
+  // All items processed successfully, update order status
   const { error: updateErr } = await supabase
     .from('purchase_orders')
     .update({ status: 'completed' } as any)

@@ -8,13 +8,9 @@
         </svg>
       </router-link>
       <div>
-        <h1 class="text-xl font-semibold tracking-tight text-gray-900">快速收银</h1>
-        <p class="text-xs text-gray-400 mt-0.5">适合零售快速开单</p>
+        <h1 class="text-xl font-semibold tracking-tight text-gray-900">销售商品</h1>
       </div>
       <div class="ml-auto flex items-center gap-3">
-        <select v-model="selectedWarehouseId" class="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
-          <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-        </select>
         <SearchableSelect :options="customerOptions" v-model="form.customer_id" placeholder="客户: 默认零售" class="w-44" @update:model-value="onCustomerChange" />
       </div>
     </div>
@@ -86,10 +82,14 @@
             <span class="text-xl font-bold text-gray-900">¥{{ total.toFixed(2) }}</span>
           </div>
 
-          <!-- Single button: complete sale -->
-          <button class="w-full btn-primary py-3 text-base font-semibold" :disabled="saving || items.length === 0 || !selectedWarehouseId" @click="handleQuickSale">
-            {{ saving ? '保存中...' : '✓ 完成销售' }}
-          </button>
+          <div class="grid grid-cols-2 gap-3">
+            <button class="w-full btn-primary py-3 text-base font-semibold" :disabled="saving || items.length === 0" @click="handleQuickSale('paid')">
+              {{ saving ? '保存中...' : '💰 收钱完成' }}
+            </button>
+            <button class="w-full btn-secondary py-3 text-base font-semibold" :disabled="saving || items.length === 0" @click="handleQuickSale('credit')">
+              {{ saving ? '保存中...' : '📝 记账' }}
+            </button>
+          </div>
         </div>
 
         <div v-if="error" class="px-4 pb-2 text-red-600 text-sm">{{ error }}</div>
@@ -110,10 +110,10 @@
 
         <!-- Category Tabs -->
         <div class="px-4 pb-3 flex gap-1.5 overflow-x-auto flex-shrink-0">
-          <button :class="selectedCategoryId === null ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors" @click="selectedCategoryId = null">
+          <button :class="selectedCategoryId === null ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors" @click="selectCategory(null)">
             全部
           </button>
-          <button v-for="cat in categories" :key="cat.id" :class="selectedCategoryId === cat.id ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors" @click="selectedCategoryId = cat.id">
+          <button v-for="cat in categories" :key="cat.id" :class="selectedCategoryId === cat.id ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors" @click="selectCategory(cat.id)">
             {{ cat.name }}
           </button>
         </div>
@@ -171,6 +171,45 @@
     <div class="flex-shrink-0 mt-1 flex items-center gap-3">
       <input v-model="form.remark" placeholder="备注（可选）" class="input text-sm py-2 flex-1" />
     </div>
+
+    <!-- Warehouse Selection Popup (when shop stock insufficient) -->
+    <div v-if="warehousePopup.visible" class="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <h3 class="text-lg font-semibold text-gray-900 mb-1">门店库存不足</h3>
+        <p class="text-sm text-gray-500 mb-4">以下商品需要从仓库补货，请选择从哪个仓库扣减：</p>
+
+        <div class="space-y-3 max-h-60 overflow-y-auto">
+          <div v-for="item in warehousePopup.items" :key="item.product_id" class="border border-gray-100 rounded-xl p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-gray-900">{{ item.product_name }}</span>
+              <span class="text-xs text-gray-500">需 {{ item.quantity }} 个（门店剩 {{ item.shop_stock }}）</span>
+            </div>
+            <div class="flex gap-2">
+              <button v-for="wh in item.available_warehouses" :key="wh.warehouse_id"
+                class="flex-1 px-3 py-2 text-sm rounded-lg border-2 transition-colors"
+                :class="item.selected_warehouse_id === wh.warehouse_id
+                  ? 'border-gray-900 bg-gray-900 text-white'
+                  : 'border-gray-200 text-gray-700 hover:border-gray-400'"
+                @click="item.selected_warehouse_id = wh.warehouse_id">
+                {{ wh.warehouse_name }}
+                <span class="block text-xs mt-0.5" :class="item.selected_warehouse_id === wh.warehouse_id ? 'text-gray-300' : 'text-gray-400'">
+                  库存 {{ wh.quantity }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="warehousePopup.error" class="mt-3 text-sm text-red-600">{{ warehousePopup.error }}</div>
+
+        <div class="flex gap-3 justify-end mt-5">
+          <button class="btn-secondary" @click="warehousePopup.visible = false">取消</button>
+          <button class="btn-primary" :disabled="warehousePopup.saving" @click="confirmWarehouseSelection">
+            {{ warehousePopup.saving ? '处理中...' : '确认出货' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -180,26 +219,23 @@ import { useRouter } from 'vue-router'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useDebounceFn } from '@/composables/useDebounce'
 import { fetchCustomers, fetchCustomerPrices } from '@/api'
-import { fetchDefaultWarehouse, fetchWarehouses } from '@/api'
+import { fetchDefaultWarehouse, fetchStockByProduct } from '@/api'
 import { fetchProducts, fetchCategories } from '@/api'
-import { fetchStockByProduct } from '@/api'
-import { createSalesOrder, saveSalesOrderItems, completeSalesOrder } from '@/api'
+import { createSalesOrder, saveSalesOrderItems, completeSalesOrder, completeSalesOrderWithWarehouses } from '@/api'
 import { fetchHotProducts } from '@/api/reports'
-import type { Customer, Product, Category, Warehouse } from '@/types'
+import type { Customer, Product, Category } from '@/types'
 
 const router = useRouter()
 const saving = ref(false); const error = ref(''); const success = ref('')
-const defaultWarehouse = ref<{ id: number } | null>(null)
-const warehouses = ref<Warehouse[]>([])
-const selectedWarehouseId = ref<number | null>(null)
+const defaultWarehouseId = ref<number | null>(null)
 const customers = ref<Customer[]>([])
 const categories = ref<Category[]>([])
-const allProducts = ref<Product[]>([])
+const displayProducts = ref<Product[]>([])
 const searchQuery = ref('')
-const searchResults = ref<Product[]>([])
 const selectedCategoryId = ref<number | null>(null)
 const hoveredProductId = ref<number | null>(null)
 const frequentProducts = ref<Product[]>([])
+const productsLoading = ref(false)
 const customerPricesMap = new Map<number, number>()
 const productStocks = reactive<Record<number, { warehouse_id: number; warehouse_name: string; quantity: number }[]>>({})
 
@@ -212,21 +248,44 @@ const items = reactive<{ product_id: number; product_name: string; quantity: num
 
 const total = computed(() => items.reduce((s, i) => s + (i.line_total || 0), 0))
 
+// Warehouse selection popup state
+const warehousePopup = reactive({
+  visible: false,
+  saving: false,
+  error: '',
+  paymentMode: 'paid' as 'paid' | 'credit',
+  items: [] as Array<{
+    product_id: number
+    product_name: string
+    quantity: number
+    shop_stock: number
+    selected_warehouse_id: number | null
+    available_warehouses: Array<{ warehouse_id: number; warehouse_name: string; quantity: number }>
+  }>
+})
+
 const customerOptions = computed(() => [
   { value: '', label: '默认零售' },
   ...customers.value.map(c => ({ value: c.id, label: c.name }))
 ])
 
-/** Products to show in the grid: either search results or category-filtered list */
-const displayProducts = computed(() => {
-  if (searchQuery.value.trim()) {
-    return searchResults.value
-  }
-  if (selectedCategoryId.value !== null) {
-    return allProducts.value.filter(p => p.category_id === selectedCategoryId.value)
-  }
-  return allProducts.value
-})
+/** Load products from server with optional filters */
+async function loadProducts(opts?: { search?: string; category_id?: number; limit?: number }) {
+  productsLoading.value = true
+  const params: Record<string, any> = { limit: opts?.limit ?? 30 }
+  if (opts?.search) params.search = opts.search
+  if (opts?.category_id) params.category_id = opts.category_id
+  const res = await fetchProducts(params)
+  displayProducts.value = res.data ?? []
+  productsLoading.value = false
+}
+
+/** Switch category tab */
+function selectCategory(categoryId: number | null) {
+  selectedCategoryId.value = categoryId
+  searchQuery.value = ''
+  loadProducts({ category_id: categoryId ?? undefined })
+}
 
 function selectProduct(p: Product) {
   const existing = items.find(i => i.product_id === p.id)
@@ -234,7 +293,6 @@ function selectProduct(p: Product) {
     existing.quantity++
     calcLine(items.indexOf(existing))
   } else {
-    // Use customer price if available, otherwise reference price
     const customerPrice = customerPricesMap.get(p.id)
     const price = customerPrice ?? p.reference_price ?? 0
     items.push({
@@ -267,12 +325,12 @@ function clearCart() {
 }
 
 function marginColor(item: { unit_price: number; cost_price: number }): string {
-  if (item.cost_price <= 0) return 'bg-gray-300' // 无进价，灰色
-  if (item.unit_price < item.cost_price) return 'bg-gray-900' // 💀 低于进价，黑色（最醒目）
+  if (item.cost_price <= 0) return 'bg-gray-300'
+  if (item.unit_price < item.cost_price) return 'bg-gray-900'
   const margin = (item.unit_price - item.cost_price) / item.unit_price
-  if (margin >= 0.3) return 'bg-green-500' // 毛利 >30%
-  if (margin >= 0.1) return 'bg-amber-400' // 毛利 10-30%
-  return 'bg-red-500' // 毛利 <10%
+  if (margin >= 0.3) return 'bg-green-500'
+  if (margin >= 0.1) return 'bg-amber-400'
+  return 'bg-red-500'
 }
 
 function marginTip(item: { unit_price: number; cost_price: number; product_name: string }): string {
@@ -290,7 +348,6 @@ async function onCustomerChange(customerId: string | number | null) {
     for (const cp of data) {
       customerPricesMap.set(cp.product_id, cp.price)
     }
-    // Update prices for items already in cart
     for (const item of items) {
       const cp = customerPricesMap.get(item.product_id)
       if (cp !== undefined) {
@@ -322,23 +379,102 @@ async function showStock(productId: number) {
 
 async function doSearch() {
   const q = searchQuery.value.trim()
-  if (!q) { searchResults.value = []; return }
-  const res = await fetchProducts({ search: q })
-  if (res.data) {
-    searchResults.value = res.data
+  if (!q) {
+    // Clear search, reload default or current category
+    selectedCategoryId.value = null
+    loadProducts()
+    return
+  }
+  selectedCategoryId.value = null
+  loadProducts({ search: q, limit: 50 })
+}
+
+async function handleQuickSale(paymentMode: 'paid' | 'credit') {
+  if (saving.value) return
+  saving.value = true; error.value = ''; success.value = ''
+  try {
+    const shopId = defaultWarehouseId.value
+    if (!shopId) { error.value = '未配置默认门店仓库'; saving.value = false; return }
+
+    // Check shop stock for each item
+    const insufficient: typeof warehousePopup.items = []
+    for (const item of items) {
+      const stocks = productStocks[item.product_id] || await fetchStockByProduct(item.product_id).then(r => (r.data ?? []).map((s: any) => ({ warehouse_id: s.warehouse_id, warehouse_name: s.warehouse_name, quantity: s.quantity })))
+      if (!productStocks[item.product_id] && stocks.length) {
+        productStocks[item.product_id] = stocks as any
+      }
+      const shopStock = stocks.find((s: any) => s.warehouse_id === shopId)?.quantity ?? 0
+      if (shopStock < item.quantity) {
+        const otherWarehouses = stocks.filter((s: any) => s.warehouse_id !== shopId && s.quantity > 0)
+        if (otherWarehouses.length === 0) {
+          // No warehouse has stock either — proceed anyway (allow negative)
+          continue
+        }
+        insufficient.push({
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          shop_stock: shopStock,
+          selected_warehouse_id: otherWarehouses[0].warehouse_id,
+          available_warehouses: otherWarehouses as any
+        })
+      }
+    }
+
+    if (insufficient.length > 0) {
+      // Show warehouse selection popup
+      warehousePopup.items = insufficient
+      warehousePopup.paymentMode = paymentMode
+      warehousePopup.error = ''
+      warehousePopup.visible = true
+      saving.value = false
+      return
+    }
+
+    // All items have enough shop stock — proceed directly
+    await submitOrder(shopId, paymentMode)
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : '网络错误'
+    saving.value = false
   }
 }
 
-async function handleQuickSale() {
-  if (saving.value) return
+async function confirmWarehouseSelection() {
+  if (warehousePopup.saving) return
+  warehousePopup.saving = true; warehousePopup.error = ''
+
+  // Check all items have a selected warehouse
+  const unselected = warehousePopup.items.find(i => !i.selected_warehouse_id)
+  if (unselected) {
+    warehousePopup.error = `请选择「${unselected.product_name}」的出货仓库`
+    warehousePopup.saving = false
+    return
+  }
+
+  warehousePopup.visible = false
+
+  // Build warehouse mapping: product_id → warehouse_id
+  const shopId = defaultWarehouseId.value!
+  const warehouseMap = new Map<number, number>()
+  warehouseMap.set(shopId, shopId) // default to shop
+  for (const item of warehousePopup.items) {
+    warehouseMap.set(item.product_id, item.selected_warehouse_id!)
+  }
+
+  await submitOrder(shopId, warehousePopup.paymentMode, warehouseMap)
+}
+
+async function submitOrder(
+  defaultWarehouseId: number,
+  paymentMode: 'paid' | 'credit',
+  warehouseMap?: Map<number, number>
+) {
   saving.value = true; error.value = ''; success.value = ''
-  const whId = selectedWarehouseId.value || defaultWarehouse.value?.id
-  if (!whId) { error.value = '未配置默认仓库'; saving.value = false; return }
   try {
     const data: Record<string, any> = {
-      warehouse_id: whId,
+      warehouse_id: defaultWarehouseId,
       total_amount: total.value,
-      paid_amount: total.value,
+      paid_amount: paymentMode === 'paid' ? total.value : 0,
       remark: form.remark || null,
       needs_delivery: false,
       status: 'pending'
@@ -347,22 +483,27 @@ async function handleQuickSale() {
       data.customer_id = form.customer_id
     }
     const orderRes = await createSalesOrder(data as any)
-    if (!orderRes.data) { error.value = orderRes.error || '保存失败'; return }
+    if (!orderRes.data) { error.value = orderRes.error || '保存失败'; saving.value = false; return }
 
     const orderId = orderRes.data.id
     const itemData = items.map(i => ({
       product_id: i.product_id,
       quantity: i.quantity,
       unit_price: i.unit_price,
-      cost_price: i.cost_price
+      cost_price: i.cost_price,
+      // Use specific warehouse if mapped, otherwise default
+      warehouse_id: warehouseMap?.get(i.product_id) ?? defaultWarehouseId
     }))
     const itemRes = await saveSalesOrderItems(orderId, itemData)
-    if (itemRes.error) { error.value = itemRes.error; return }
+    if (itemRes.error) { error.value = itemRes.error; saving.value = false; return }
 
-    const completeRes = await completeSalesOrder(orderId)
-    if (completeRes.error) { error.value = completeRes.error; return }
+    const completeRes = warehouseMap && warehouseMap.size > 0
+      ? await completeSalesOrderWithWarehouses(orderId, Object.fromEntries(warehouseMap))
+      : await completeSalesOrder(orderId)
+    if (completeRes.error) { error.value = completeRes.error; saving.value = false; return }
 
-    success.value = '销售完成！'
+    items.splice(0, items.length)
+    success.value = paymentMode === 'paid' ? '收钱完成！' : '记账完成！'
     setTimeout(() => router.push('/sales'), 1000)
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : '网络错误'
@@ -370,31 +511,26 @@ async function handleQuickSale() {
 }
 
 onMounted(async () => {
-  const [defRes, whRes, cRes, pRes, catRes, hotRes] = await Promise.all([
+  const [defRes, cRes, catRes, hotRes] = await Promise.all([
     fetchDefaultWarehouse(),
-    fetchWarehouses(),
-    fetchCustomers({ type: 'retail' }),
-    fetchProducts({}),
+    fetchCustomers({}),
     fetchCategories(),
     fetchHotProducts()
   ])
-  if (defRes.data) defaultWarehouse.value = defRes.data
-  if (whRes.data) {
-    warehouses.value = whRes.data
-    selectedWarehouseId.value = defaultWarehouse.value?.id || whRes.data[0]?.id || null
-  }
+  if (defRes.data) defaultWarehouseId.value = defRes.data.id
   if (cRes.data) customers.value = cRes.data
-  if (pRes.data) allProducts.value = pRes.data
   if (catRes.data) categories.value = catRes.data
 
-  // Build frequent products from hot products by quantity
-  if (hotRes.data?.by_quantity && pRes.data) {
+  // Build frequent products bar from hot data
+  if (hotRes.data?.by_quantity) {
     const hotNames = new Set(hotRes.data.by_quantity.map(h => h.product_name))
-    frequentProducts.value = pRes.data.filter(p => hotNames.has(p.name)).slice(0, 8)
-  }
-  // Fallback: if no hot data, use first 8 products
-  if (frequentProducts.value.length === 0 && pRes.data) {
-    frequentProducts.value = pRes.data.slice(0, 8)
+    const hotProductRes = await fetchProducts({ limit: 30 })
+    if (hotProductRes.data) {
+      frequentProducts.value = hotProductRes.data.filter(p => hotNames.has(p.name)).slice(0, 8)
+      displayProducts.value = hotProductRes.data.slice(0, 30)
+    }
+  } else {
+    await loadProducts({ limit: 30 })
   }
 })
 </script>

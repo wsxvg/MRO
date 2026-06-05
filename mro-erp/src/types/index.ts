@@ -176,6 +176,7 @@ export interface SalesOrderItem {
   unit_price: number
   cost_price: number
   line_total: number
+  warehouse_id?: number | null
   // Joined fields
   product_name?: string
   product_specification?: string

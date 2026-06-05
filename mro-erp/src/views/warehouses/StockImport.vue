@@ -300,7 +300,7 @@ const receiveDialog = reactive({
 })
 
 // Last cost prices cache
-const lastCostMap = new Map<number, { cost: number; is_estimated: boolean }>()
+const lastCostMap = new Map<number, { cost: number; is_estimated: boolean; date: string }>()
 
 const canSubmit = computed(() => {
   return warehouseId.value && rows.value.length > 0 && rows.value.every(r => {
@@ -547,8 +547,8 @@ async function loadLastCostPrices() {
   for (const lot of (data ?? [])) {
     if (lot.unit_cost > 0) {
       const existing = lastCostMap.get(lot.product_id)
-      if (!existing || new Date(lot.stock_in_date) > new Date(existing.cost.toString())) {
-        lastCostMap.set(lot.product_id, { cost: lot.unit_cost, is_estimated: lot.is_estimated })
+      if (!existing || new Date(lot.stock_in_date) > new Date(existing.date)) {
+        lastCostMap.set(lot.product_id, { cost: lot.unit_cost, is_estimated: lot.is_estimated, date: lot.stock_in_date })
       }
     }
   }

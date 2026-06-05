@@ -23,7 +23,13 @@ export async function fetchSalesOrders(params?: {
   if (params?.status) query = query.eq('status', params.status)
   if (params?.customer_id) query = query.eq('customer_id', params.customer_id)
   if (params?.date_from) query = query.gte('created_at', params.date_from)
-  if (params?.date_to) query = query.lte('created_at', params.date_to)
+  if (params?.date_to) {
+    // If date_to is a date-only string (YYYY-MM-DD), extend to end of day
+    const dateTo = params.date_to.length === 10
+      ? `${params.date_to}T23:59:59.999`
+      : params.date_to
+    query = query.lte('created_at', dateTo)
+  }
 
   const page = params?.page ?? 1
   const limit = params?.limit ?? 50
@@ -95,8 +101,53 @@ export async function completeSalesOrder(id: number): Promise<ApiResult<null>> {
   return { data: null, error: error?.message ?? null }
 }
 
+/**
+ * Complete a sales order with per-item warehouse overrides.
+ * Items not in the override map use the order's default warehouse.
+ * This is used when some items need to be deducted from a different warehouse
+ * (e.g., shop is out of stock, pull from warehouse B).
+ */
+export async function completeSalesOrderWithWarehouses(
+  orderId: number,
+  warehouseOverrides: Record<number, number> // product_id → warehouse_id
+): Promise<ApiResult<null>> {
+  // Update warehouse_id on specific order items before completing
+  for (const [productId, warehouseId] of Object.entries(warehouseOverrides)) {
+    await supabase
+      .from('sales_order_items')
+      .update({ warehouse_id: warehouseId } as any)
+      .eq('sales_order_id', orderId)
+      .eq('product_id', Number(productId))
+  }
+
+  // Call the multi-warehouse completion RPC
+  const { error } = await supabase.rpc('complete_sales_order_mw', { p_order_id: orderId } as any)
+  if (!error) {
+    const { data: items } = await supabase
+      .from('sales_order_items')
+      .select('product_id')
+      .eq('sales_order_id', orderId)
+    const productIds = [...new Set((items ?? []).map((i: any) => i.product_id))]
+    await Promise.all(productIds.map(pid =>
+      supabase.rpc('calc_safety_stock', { p_product_id: pid } as any)
+    ))
+  }
+  return { data: null, error: error?.message ?? null }
+}
+
 export async function reverseSalesOrder(id: number): Promise<ApiResult<null>> {
   const { error } = await supabase.rpc('reverse_sales_order', { p_order_id: id } as any)
+  return { data: null, error: error?.message ?? null }
+}
+
+/**
+ * Delete a sales order and all related records (items, payment records).
+ * Use after reversing stock, or for cancelled orders.
+ */
+export async function deleteSalesOrder(id: number): Promise<ApiResult<null>> {
+  await supabase.from('payment_records').delete().eq('sales_order_id', id)
+  await supabase.from('sales_order_items').delete().eq('sales_order_id', id)
+  const { error } = await supabase.from('sales_orders').delete().eq('id', id)
   return { data: null, error: error?.message ?? null }
 }
 
@@ -122,19 +173,40 @@ export async function saveSalesOrderItems(
   orderId: number,
   items: Omit<SalesOrderItem, 'id' | 'sales_order_id' | 'line_total'>[]
 ): Promise<ApiResult<null>> {
-  await supabase.from('sales_order_items').delete().eq('sales_order_id', orderId)
-  if (items.length === 0) return { data: null, error: null }
+  if (items.length === 0) {
+    const { error } = await supabase.from('sales_order_items').delete().eq('sales_order_id', orderId)
+    return { data: null, error: error?.message ?? null }
+  }
 
   const records = items.map(i => ({
     sales_order_id: orderId,
     product_id: i.product_id,
     quantity: i.quantity,
     unit_price: i.unit_price,
-    cost_price: i.cost_price
+    cost_price: i.cost_price,
+    warehouse_id: (i as any).warehouse_id ?? null
   }))
 
-  const { error } = await supabase.from('sales_order_items').insert(records as any[])
-  return { data: null, error: error?.message ?? null }
+  // Safe pattern: validate insert succeeds before deleting old data.
+  // Step 1: Insert new items alongside old ones (temporarily have duplicates)
+  const { error: insertErr } = await supabase.from('sales_order_items').insert(records as any[])
+  if (insertErr) return { data: null, error: insertErr.message }
+
+  // Step 2: Old items still exist; delete them by keeping only the newest batch.
+  // Fetch all items for this order, keep only the latest N (our new items).
+  const { data: allItems } = await supabase
+    .from('sales_order_items')
+    .select('id')
+    .eq('sales_order_id', orderId)
+    .order('id', { ascending: false })
+
+  if (allItems && allItems.length > records.length) {
+    // Delete the older extras (everything beyond our new batch)
+    const idsToDelete = allItems.slice(records.length).map((r: any) => r.id)
+    await supabase.from('sales_order_items').delete().in('id', idsToDelete)
+  }
+
+  return { data: null, error: null }
 }
 
 // ====== Sales Returns ======
@@ -195,6 +267,14 @@ export async function createSalesReturn(
   input: Omit<SalesReturnOrder, 'id' | 'order_no' | 'created_at' | 'updated_at' | 'customer_name' | 'warehouse_name'>
 ): Promise<ApiResult<SalesReturnOrder>> {
   const { data, error } = await supabase.from('sales_return_orders').insert(input as any).select().single()
+  return { data, error: error?.message ?? null }
+}
+
+export async function updateSalesReturn(
+  id: number,
+  input: Partial<Omit<SalesReturnOrder, 'id' | 'order_no' | 'created_at' | 'updated_at' | 'customer_name' | 'warehouse_name'>>
+): Promise<ApiResult<SalesReturnOrder>> {
+  const { data, error } = await supabase.from('sales_return_orders').update(input as any).eq('id', id).select().single()
   return { data, error: error?.message ?? null }
 }
 

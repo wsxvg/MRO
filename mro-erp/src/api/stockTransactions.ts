@@ -27,7 +27,10 @@ export async function fetchStockTransactions(params?: {
     query = query.gte('created_at', params.date_from)
   }
   if (params?.date_to) {
-    query = query.lte('created_at', params.date_to)
+    const dateTo = params.date_to.length === 10
+      ? `${params.date_to}T23:59:59.999`
+      : params.date_to
+    query = query.lte('created_at', dateTo)
   }
 
   const page = params?.page ?? 1
@@ -190,7 +193,7 @@ export async function createStockAdjustment(input: {
 
   if (delta > 0) {
     // Increase: create a new lot
-    await supabase.from('stock_lots').insert({
+    const { error: lotErr } = await supabase.from('stock_lots').insert({
       warehouse_id: input.warehouse_id,
       product_id: input.product_id,
       quantity: delta,
@@ -198,6 +201,7 @@ export async function createStockAdjustment(input: {
       is_estimated: costPrice <= 0,
       remark: '手动调增',
     } as any)
+    if (lotErr) return { data: null, error: `创建批次失败: ${lotErr.message}` }
   } else {
     // Decrease: deduct from lots FIFO
     let remaining = Math.abs(delta)
@@ -212,7 +216,8 @@ export async function createStockAdjustment(input: {
     for (const lot of (lots ?? []) as any[]) {
       if (remaining <= 0) break
       const deduct = Math.min(lot.quantity, remaining)
-      await supabase.from('stock_lots').update({ quantity: lot.quantity - deduct } as any).eq('id', lot.id)
+      const { error: updateErr } = await supabase.from('stock_lots').update({ quantity: lot.quantity - deduct } as any).eq('id', lot.id)
+      if (updateErr) return { data: null, error: `扣减批次失败: ${updateErr.message}` }
       remaining -= deduct
     }
   }
@@ -228,7 +233,7 @@ export async function createStockAdjustment(input: {
     ref_id: null,
     remark: delta > 0 ? '手动调增' : '手动调减'
   } as any)
-  if (txErr) return { data: null, error: txErr.message }
+  if (txErr) return { data: null, error: `记录流水失败: ${txErr.message}` }
 
   // Update stock record
   if (existing) {

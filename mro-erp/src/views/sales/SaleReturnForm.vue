@@ -82,7 +82,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchSalesReturn, createSalesReturn, completeSalesReturn, fetchSalesReturnItems, saveSalesReturnItems, fetchSalesOrders } from '@/api'
+import { fetchSalesReturn, createSalesReturn, updateSalesReturn, completeSalesReturn, fetchSalesReturnItems, saveSalesReturnItems, fetchSalesOrders } from '@/api'
 import { fetchCustomers } from '@/api'
 import { fetchWarehouses } from '@/api'
 import { fetchProducts } from '@/api'
@@ -151,13 +151,22 @@ async function saveAndComplete() { await handleSubmit('completed') }
 async function handleSubmit(status: string) {
   saving.value = true; error.value = ''
   try {
-    const data = { customer_id: form.customer_id!, warehouse_id: form.warehouse_id!, sales_order_id: form.sales_order_id || null, total_amount: total.value, remark: form.remark || null, status } as any
-    const orderRes = await createSalesReturn(data)
+    const payload = { customer_id: form.customer_id!, warehouse_id: form.warehouse_id!, sales_order_id: form.sales_order_id || null, total_amount: total.value, remark: form.remark || null, status } as any
+    const orderRes = isEdit
+      ? await updateSalesReturn(Number(route.params.id), payload)
+      : await createSalesReturn(payload)
     if (!orderRes.data) { error.value = orderRes.error || '保存失败'; return }
-    const orderId = orderRes.data.id
+    const orderId = isEdit ? Number(route.params.id) : orderRes.data.id
     const itemData = items.filter(i => i.product_id).map(i => ({ product_id: i.product_id!, quantity: i.quantity, unit_price: i.unit_price }))
     await saveSalesReturnItems(orderId, itemData)
-    if (status === 'completed') await completeSalesReturn(orderId)
+    if (status === 'completed') {
+      const completeRes = await completeSalesReturn(orderId)
+      if (completeRes.error) {
+        error.value = `退货完成失败: ${completeRes.error}`
+        saving.value = false
+        return
+      }
+    }
     router.push('/sales-returns')
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : '网络错误'

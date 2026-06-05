@@ -235,7 +235,6 @@ async function handleSubmit(status: string) {
   if (saving.value) return
   saving.value = true; error.value = ''
   try {
-    // 始终先存为草稿，再由 RPC 原子化完成（库存扣减 + 状态变更）
     const data = {
       customer_id: form.customer_id!,
       warehouse_id: form.warehouse_id!,
@@ -255,12 +254,14 @@ async function handleSubmit(status: string) {
       unit_price: i.unit_price,
       cost_price: i.cost_price
     }))
-    await saveSalesOrderItems(orderId, itemData)
-    // 仅在需要完成时调用 RPC（原子处理状态 + 扣库存）
+    const itemRes = await saveSalesOrderItems(orderId, itemData)
+    if (itemRes.error) {
+      error.value = `保存商品明细失败: ${itemRes.error}`
+      return
+    }
     if (status === 'completed') {
       const rpcRes = await completeSalesOrder(orderId)
       if (rpcRes.error) {
-        // RPC 失败时回退为草稿，防止出现"已完成但未扣库存"的脏数据
         await updateSalesOrder(orderId, { status: 'pending', paid_amount: 0 })
         error.value = rpcRes.error
         return
