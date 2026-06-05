@@ -89,168 +89,130 @@
       </div>
     </div>
 
-    <!-- 进货表单弹窗 -->
-    <div v-if="showImportForm" class="fixed inset-0 bg-black/20 flex items-start justify-center z-50 overflow-y-auto py-8" @click.self="showImportForm = false">
-      <div class="bg-white rounded-2xl p-6 w-full max-w-4xl shadow-2xl">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">进货</h3>
-          <button class="text-gray-400 hover:text-gray-600" @click="showImportForm = false">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-
-        <!-- 仓库 + 供应商 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label class="label">目标仓库 <span class="text-red-500">*</span></label>
-            <select v-model="warehouseId" class="input" required>
-              <option :value="null">请选择仓库</option>
-              <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-            </select>
+    <!-- 右侧抽屉面板 -->
+    <Teleport to="body">
+      <div v-if="showImportForm" class="drawer-overlay" ref="drawerOverlayRef" @click="closeDrawer">
+        <div class="drawer-panel" ref="drawerPanelRef" @click.stop>
+          <!-- 抽屉头部 -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-900">进货入库</h3>
+            <button class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" @click="closeDrawer">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
-          <div>
-            <label class="label">供应商</label>
-            <div class="flex gap-2">
-              <select v-model="supplierId" class="input flex-1">
-                <option :value="null">不指定供应商</option>
-                <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
-              </select>
-              <button type="button" class="btn-secondary text-sm whitespace-nowrap" @click="showAddSupplier = true">
-                + 新增
-              </button>
+
+          <!-- 抽屉内容（可滚动） -->
+          <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <!-- 仓库 + 供应商 -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label text-xs">目标仓库 <span class="text-red-500">*</span></label>
+                <select v-model="warehouseId" class="input text-sm" required>
+                  <option :value="null">请选择仓库</option>
+                  <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="label text-xs">供应商</label>
+                <div class="flex gap-1">
+                  <select v-model="supplierId" class="input text-sm flex-1">
+                    <option :value="null">不指定</option>
+                    <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
+                  </select>
+                  <button type="button" class="btn-secondary text-xs px-2" @click="showAddSupplier = true">+</button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <!-- 商品列表 -->
-        <div class="mb-4">
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-medium text-gray-700">商品明细</span>
-            <button type="button" class="btn-primary text-sm" @click="addRow">+ 添加商品</button>
-          </div>
+            <!-- 商品列表 -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700">商品明细</span>
+                <button type="button" class="text-xs px-2 py-1 rounded-lg border border-dashed border-gray-300 text-gray-500 hover:text-primary-600 hover:border-primary-300 transition-colors" @click="addRow">+ 添加</button>
+              </div>
 
-          <div v-if="rows.length === 0" class="text-center py-6 text-gray-400 text-sm">
-            点击「添加商品」开始进货
-          </div>
+              <div v-if="rows.length === 0" class="text-center py-6 text-gray-400 text-xs">
+                点击「+ 添加」开始进货
+              </div>
 
-          <div v-else class="space-y-3 max-h-[50vh] overflow-y-auto">
-            <div v-for="(row, i) in rows" :key="i"
-              class="border border-gray-100 rounded-lg p-3 space-y-2"
-              :class="{ 'border-amber-200 bg-amber-50': row.is_estimated }">
+              <div v-else class="space-y-3">
+                <div v-for="(row, i) in rows" :key="i"
+                  class="border border-gray-100 rounded-lg p-3 space-y-2"
+                  :class="{ 'border-amber-200 bg-amber-50/50': row.is_estimated }">
 
-              <div class="flex items-start gap-3">
-                <div class="flex-1">
-                  <label class="label text-xs">商品 <span class="text-red-500">*</span></label>
-                  <div class="relative">
-                    <input v-model="row.product_name" type="text" class="input text-sm"
-                      placeholder="输入商品名称（已有商品自动匹配）"
-                      @input="onProductNameInput(i)"
-                      @focus="row.showSuggestions = true"
-                      @blur="hideSuggestions(i)" />
-                    <div v-if="row.showSuggestions && row.suggestions.length > 0"
-                      class="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
-                      <div v-for="p in row.suggestions" :key="p.id"
-                        class="px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0"
-                        @mousedown.prevent="selectProduct(i, p)">
-                        <div class="flex items-center justify-between">
-                          <div class="min-w-0 flex-1">
+                  <div class="flex items-start gap-2">
+                    <div class="flex-1 min-w-0">
+                      <div class="relative">
+                        <input v-model="row.product_name" type="text" class="input text-sm" placeholder="商品名称"
+                          @input="onProductNameInput(i)" @focus="row.showSuggestions = true" @blur="hideSuggestions(i)" />
+                        <div v-if="row.showSuggestions && row.suggestions.length > 0"
+                          class="absolute z-20 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
+                          <div v-for="p in row.suggestions" :key="p.id"
+                            class="px-3 py-1.5 text-xs cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                            @mousedown.prevent="selectProduct(i, p)">
                             <span class="font-medium text-gray-900">{{ p.name }}</span>
-                            <span v-if="p.specification" class="text-gray-500 ml-2">{{ p.specification }}</span>
+                            <span v-if="p.specification" class="text-gray-400 ml-1">{{ p.specification }}</span>
+                            <span class="text-gray-500 ml-auto">¥{{ (p.reference_price || 0).toFixed(2) }}</span>
                           </div>
-                          <span class="text-gray-600 flex-shrink-0 ml-3">¥{{ (p.reference_price || 0).toFixed(2) }}</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                          <span v-if="(p as any).category_name">{{ (p as any).category_name }}</span>
-                          <span v-if="p.cost_price > 0">进价 ¥{{ p.cost_price.toFixed(2) }}</span>
                         </div>
                       </div>
+                      <p v-if="row.is_new" class="text-[10px] text-blue-500 mt-0.5">新商品</p>
+                      <p v-else-if="row.product_id" class="text-[10px] text-green-500 mt-0.5">✓ 已匹配</p>
                     </div>
+                    <input v-model.number="row.quantity" type="number" min="1" class="input text-sm w-16 text-center" placeholder="数量" />
+                    <button type="button" class="text-gray-300 hover:text-red-500 transition-colors mt-1" @click="removeRow(i)">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                   </div>
-                  <p v-if="row.is_new" class="text-xs text-blue-600 mt-1">新商品，将自动创建</p>
-                  <p v-else-if="row.product_id" class="text-xs text-green-600 mt-1">✓ 已匹配</p>
-                </div>
-                <div class="w-24">
-                  <label class="label text-xs">数量 <span class="text-red-500">*</span></label>
-                  <input v-model.number="row.quantity" type="number" min="1" class="input text-sm" placeholder="0" />
-                </div>
-                <div class="pt-6">
-                  <button type="button" class="text-red-400 hover:text-red-600" @click="removeRow(i)">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div>
-                  <label class="label text-xs">分类</label>
-                  <input v-model="row.category_name" type="text" class="input text-sm" placeholder="输入或选择分类" list="category-list" @change="onCategoryInput(i, $event)" />
-                </div>
-                <div>
-                  <label class="label text-xs">规格</label>
-                  <input v-model="row.specification" type="text" class="input text-sm" placeholder="如：6205-2RS" />
-                </div>
-              </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input v-model="row.category_name" type="text" class="input text-xs" placeholder="分类" list="category-list" @change="onCategoryInput(i, $event)" />
+                    <input v-model="row.specification" type="text" class="input text-xs" placeholder="规格" />
+                  </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div>
-                  <label class="label text-xs">售价 <span v-if="row.is_new" class="text-red-500">*</span></label>
-                  <div class="relative">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">¥</span>
-                    <input v-model.number="row.selling_price" type="number" step="0.01" min="0" class="input text-sm pl-7" placeholder="0.00" />
+                  <div class="grid grid-cols-3 gap-2">
+                    <div class="relative">
+                      <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">¥</span>
+                      <input v-model.number="row.selling_price" type="number" step="0.01" min="0" class="input text-xs pl-5" placeholder="售价" />
+                    </div>
+                    <div class="relative">
+                      <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">¥</span>
+                      <input v-model.number="row.unit_cost" type="number" step="0.01" min="0" class="input text-xs pl-5" placeholder="进价" @input="row.is_estimated = row.unit_cost <= 0" />
+                    </div>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" v-model="row.is_estimated" class="rounded border-gray-300 w-3 h-3" />
+                      <span class="text-[10px] text-gray-500">暂估</span>
+                    </label>
                   </div>
-                </div>
-                <div>
-                  <label class="label text-xs">进价（可留空）</label>
-                  <div class="relative">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">¥</span>
-                    <input v-model.number="row.unit_cost" type="number" step="0.01" min="0" class="input text-sm pl-7" placeholder="不确定可留空" @input="row.is_estimated = row.unit_cost <= 0" />
-                  </div>
-                </div>
-                <div class="flex items-end">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" v-model="row.is_estimated" class="rounded border-gray-300" />
-                    <span class="text-sm text-gray-600">暂估价</span>
-                  </label>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Category datalist -->
-        <datalist id="category-list">
-          <option v-for="cat in categories" :key="cat.id" :value="cat.name" />
-        </datalist>
-
-        <!-- 提交 -->
-        <div v-if="rows.length > 0" class="space-y-3 border-t border-gray-100 pt-4">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="isOrderedOnly" class="rounded border-gray-300" />
-            <span class="text-sm text-gray-700">货还没到（仅下单，到货后再确认入库）</span>
-          </label>
-          <div class="flex gap-3">
-            <button class="btn-primary min-w-[120px] flex items-center justify-center gap-2"
-              :disabled="!canSubmit || saving" @click="doSubmit">
-              <svg v-if="saving" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {{ saving ? '处理中...' : (isOrderedOnly ? '确认下单' : '确认进货') }}
-            </button>
-            <button class="btn-secondary" @click="rows = []">清空</button>
+          <!-- 抽屉底部（固定） -->
+          <div v-if="rows.length > 0" class="border-t border-gray-100 px-6 py-4 space-y-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="isOrderedOnly" class="rounded border-gray-300" />
+              <span class="text-sm text-gray-700">货还没到（仅下单）</span>
+            </label>
+            <div class="flex gap-2">
+              <button class="btn-primary flex-1 text-sm" :disabled="!canSubmit || saving" @click="doSubmit">
+                {{ saving ? '处理中...' : (isOrderedOnly ? '确认下单' : '确认进货') }}
+              </button>
+              <button class="btn-secondary text-sm px-3" @click="rows = []">清空</button>
+            </div>
+            <div v-if="result" class="rounded-lg p-2 text-xs" :class="result.error ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'">
+              {{ result.error || (isOrderedOnly ? '已下单' : '已入库') }}
+            </div>
           </div>
-        </div>
 
-        <!-- 结果 -->
-        <div v-if="result" class="mt-3 rounded-lg p-3" :class="result.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'">
-          <p class="text-sm font-medium">{{ result.error ? '操作失败' : '操作成功' }}</p>
-          <p v-if="result.error" class="text-xs mt-1">{{ result.error }}</p>
-          <p v-else class="text-xs mt-1">{{ isOrderedOnly ? '已下单，等待到货' : '已成功入库' }}</p>
+          <!-- Category datalist -->
+          <datalist id="category-list">
+            <option v-for="cat in categories" :key="cat.id" :value="cat.name" />
+          </datalist>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- 新增供应商弹窗 -->
     <div v-if="showAddSupplier" class="fixed inset-0 bg-black/10 flex items-center justify-center z-50" @click.self="showAddSupplier = false">
@@ -347,11 +309,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { fetchWarehouses, fetchProducts, createProduct, batchCreateStockIn, suppliersApi, fetchAllSuppliers, fetchStockLots, fetchCategories, createCategory } from '@/api'
 import { createPurchaseOrder, fetchPurchaseOrders, fetchPurchaseOrderItems, completePurchaseOrder, cancelPurchaseOrder } from '@/api/purchaseOrders'
 import { useCommonStore } from '@/stores/common'
 import { supabase } from '@/lib/supabase'
+import gsap from 'gsap'
 import type { Warehouse, Product, Supplier } from '@/types'
 import type { PurchaseOrder, PurchaseOrderItem } from '@/api/purchaseOrders'
 
@@ -375,6 +338,8 @@ interface Category { id: number; name: string }
 
 const commonStore = useCommonStore()
 const showImportForm = ref(false)
+const drawerOverlayRef = ref<HTMLElement>()
+const drawerPanelRef = ref<HTMLElement>()
 const warehouses = ref<Warehouse[]>([])
 const allProducts = ref<Product[]>([])
 const suppliers = ref<Supplier[]>([])
@@ -655,6 +620,31 @@ async function loadLastCostPrices() {
   }
 }
 
+// Drawer animation
+watch(showImportForm, async (val) => {
+  if (val) {
+    await nextTick()
+    if (drawerOverlayRef.value && drawerPanelRef.value) {
+      gsap.set(drawerOverlayRef.value, { opacity: 0 })
+      gsap.set(drawerPanelRef.value, { x: '100%' })
+      gsap.to(drawerOverlayRef.value, { opacity: 1, duration: 0.25, ease: 'power2.out' })
+      gsap.to(drawerPanelRef.value, { x: '0%', duration: 0.35, ease: 'power3.out' })
+    }
+  }
+})
+
+function closeDrawer() {
+  if (drawerOverlayRef.value && drawerPanelRef.value) {
+    gsap.to(drawerPanelRef.value, { x: '100%', duration: 0.25, ease: 'power2.in' })
+    gsap.to(drawerOverlayRef.value, {
+      opacity: 0, duration: 0.2, ease: 'power2.in',
+      onComplete: () => { showImportForm.value = false }
+    })
+  } else {
+    showImportForm.value = false
+  }
+}
+
 onMounted(async () => {
   const [whRes, prodRes, supRes, catRes] = await Promise.all([
     fetchWarehouses(), fetchProducts({ limit: 5000 }), fetchAllSuppliers(), fetchCategories(),
@@ -666,3 +656,26 @@ onMounted(async () => {
   fetchPending(); fetchCompleted(); loadLastCostPrices()
 })
 </script>
+
+<style scoped>
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 50;
+  backdrop-filter: blur(2px);
+}
+
+.drawer-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 420px;
+  max-width: 90vw;
+  background: white;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+</style>
