@@ -31,67 +31,70 @@
             <span class="text-sm font-semibold text-gray-900">当前进货单</span>
             <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ items.length }} 件</span>
           </div>
-          <button v-if="items.length > 0" class="text-xs text-red-500 hover:text-red-700 font-medium" @click="items.splice(0, items.length)">清空</button>
-        </div>
-
-        <!-- New product input -->
-        <div class="px-4 pt-3 pb-2">
           <div class="flex gap-2">
-            <input v-model="newProductName" type="text" class="input text-sm flex-1" placeholder="输入新商品名称（没有的商品）" @keydown.enter="addNewProduct" />
-            <button class="btn-secondary text-sm px-3" @click="addNewProduct" :disabled="!newProductName.trim()">+ 添加</button>
+            <button v-if="items.length > 0" class="text-xs text-red-500 hover:text-red-700 font-medium" @click="items.splice(0, items.length)">清空</button>
+            <button class="text-xs text-primary-600 hover:text-primary-700 font-medium" @click="addBlankRow">+ 添加</button>
           </div>
         </div>
 
         <!-- Cart Items -->
         <div v-if="items.length > 0" class="flex-1 overflow-y-auto px-4 py-2 space-y-2">
-          <div v-for="(item, idx) in items" :key="item.product_id || ('new-' + idx)" class="border border-gray-100 rounded-lg p-3 space-y-2" :class="{ 'border-amber-200 bg-amber-50/50': item.is_new }">
-            <div class="flex items-start justify-between">
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-gray-900 truncate">{{ item.product_name }}</p>
-                <p v-if="item.is_new" class="text-[10px] text-blue-500">新商品，将自动创建</p>
-                <p v-else-if="item.specification" class="text-[10px] text-gray-400">{{ item.specification }}</p>
+          <div v-for="(item, idx) in items" :key="item._key" class="border border-gray-100 rounded-lg p-3 space-y-2" :class="{ 'border-amber-200 bg-amber-50/50': item.is_new }">
+            <!-- Product name with autocomplete -->
+            <div class="flex items-start gap-2">
+              <div class="flex-1 min-w-0 relative">
+                <input v-model="item.product_name" type="text" class="input text-sm" placeholder="输入商品名称"
+                  @input="onProductNameInput(idx)" @focus="item.showSuggestions = true" @blur="hideSuggestions(idx)" />
+                <div v-if="item.showSuggestions && item.suggestions.length > 0"
+                  class="absolute z-20 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
+                  <div v-for="p in item.suggestions" :key="p.id"
+                    class="px-3 py-1.5 text-xs cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                    @mousedown.prevent="selectProduct(idx, p)">
+                    <span class="font-medium text-gray-900">{{ p.name }}</span>
+                    <span v-if="p.specification" class="text-gray-400 ml-1">{{ p.specification }}</span>
+                    <span v-if="p.cost_price > 0" class="text-gray-500 ml-2">进¥{{ p.cost_price.toFixed(2) }}</span>
+                  </div>
+                </div>
+                <p v-if="item.is_new" class="text-[10px] text-blue-500 mt-0.5">新商品，将自动创建</p>
+                <p v-else-if="item.product_id" class="text-[10px] text-green-500 mt-0.5">✓ {{ item.specification || '已匹配' }}</p>
               </div>
-              <div class="flex items-center gap-1 ml-2">
-                <button class="w-7 h-7 rounded-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100" @click="decrement(idx)">
+              <button class="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 mt-0.5 flex-shrink-0" @click="items.splice(idx, 1)">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <!-- Quantity + Cost Price + Estimated -->
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1">
+                <button class="w-7 h-7 rounded-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100" @click="item.quantity > 1 && item.quantity--">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
                 </button>
                 <input v-model.number="item.quantity" type="number" min="1" class="w-12 text-center text-sm border border-gray-200 rounded-md py-1" />
                 <button class="w-7 h-7 rounded-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100" @click="item.quantity++">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                 </button>
-                <button class="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 ml-1" @click="items.splice(idx, 1)">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
               </div>
-            </div>
-
-            <!-- Category + Spec (new products or editable) -->
-            <div v-if="item.is_new" class="grid grid-cols-2 gap-2">
-              <input v-model="item.category_name" type="text" class="input text-xs" placeholder="分类" list="import-category-list" />
-              <input v-model="item.specification" type="text" class="input text-xs" placeholder="规格" />
-            </div>
-
-            <!-- Prices -->
-            <div class="grid grid-cols-3 gap-2">
-              <div class="relative">
-                <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">售</span>
-                <input v-model.number="item.selling_price" type="number" step="0.01" min="0" class="input text-xs pl-5" placeholder="售价" />
-              </div>
-              <div class="relative">
-                <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">进</span>
+              <div class="relative flex-1">
+                <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">¥</span>
                 <input v-model.number="item.unit_cost" type="number" step="0.01" min="0" class="input text-xs pl-5" placeholder="进价" @input="item.is_estimated = item.unit_cost <= 0" />
               </div>
-              <label class="flex items-center gap-1 cursor-pointer">
+              <label class="flex items-center gap-1 cursor-pointer flex-shrink-0">
                 <input type="checkbox" v-model="item.is_estimated" class="rounded border-gray-300 w-3 h-3" />
                 <span class="text-[10px] text-gray-500">暂估</span>
               </label>
+            </div>
+
+            <!-- New product: category + spec -->
+            <div v-if="item.is_new" class="grid grid-cols-2 gap-2">
+              <input v-model="item.category_name" type="text" class="input text-xs" placeholder="分类" list="import-category-list" />
+              <input v-model="item.specification" type="text" class="input text-xs" placeholder="规格（可选）" />
             </div>
           </div>
         </div>
         <div v-else class="flex-1 flex items-center justify-center">
           <div class="text-center">
             <svg class="w-12 h-12 mx-auto text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-            <p class="text-sm text-gray-400 mt-2">点击右侧商品或输入新商品名</p>
+            <p class="text-sm text-gray-400 mt-2">点击右侧商品或点「+ 添加」</p>
           </div>
         </div>
 
@@ -138,7 +141,9 @@
             <p class="text-sm text-gray-400">暂无商品</p>
           </div>
           <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            <div v-for="p in displayProducts" :key="p.id" class="group bg-white border border-gray-200/80 rounded-2xl p-3 cursor-pointer hover:border-gray-900 hover:shadow-sm transition-all" @click="addExistingProduct(p)">
+            <div v-for="p in displayProducts" :key="p.id"
+              class="group relative bg-white border border-gray-200/80 rounded-2xl p-3 cursor-pointer hover:border-gray-900 hover:shadow-sm transition-all"
+              @click="addFromGrid(p)">
               <div class="text-sm font-medium text-gray-900 truncate">{{ p.name }}</div>
               <div class="text-xs text-gray-400 mt-0.5 truncate">{{ p.specification || '' }}</div>
               <div class="flex items-center justify-between mt-2">
@@ -166,16 +171,18 @@ import { createPurchaseOrder } from '@/api/purchaseOrders'
 import type { Product, Warehouse, Supplier } from '@/types'
 
 interface ImportItem {
+  _key: number
   product_id: number | null
   product_name: string
   specification: string
   category_id: number | null
   category_name: string
   quantity: number
-  selling_price: number
   unit_cost: number
   is_estimated: boolean
   is_new: boolean
+  showSuggestions: boolean
+  suggestions: Product[]
 }
 
 const router = useRouter()
@@ -190,69 +197,82 @@ const categories = ref<{ id: number; name: string }[]>([])
 const warehouseId = ref<number | null>(null)
 const supplierId = ref<number | null>(null)
 
+const allProducts = ref<Product[]>([])
 const items = reactive<ImportItem[]>([])
-const newProductName = ref('')
+let nextKey = 0
 
 const displayProducts = ref<Product[]>([])
 const searchQuery = ref('')
 const selectedCategoryId = ref<number | null>(null)
 
-// Cost price cache
 const lastCostMap = new Map<number, { cost: number; is_estimated: boolean; date: string }>()
 
 const canSubmit = computed(() => {
   return warehouseId.value && items.length > 0 && items.every(i => {
     if (!i.product_name.trim() || i.quantity <= 0) return false
-    if (i.is_new && i.selling_price <= 0) return false
+    if (i.is_new && i.unit_cost <= 0) return false
     return true
   })
 })
 
-/** Add existing product from grid */
-function addExistingProduct(p: Product) {
+function addBlankRow() {
+  items.push({
+    _key: nextKey++, product_id: null, product_name: '', specification: '',
+    category_id: null, category_name: '', quantity: 1, unit_cost: 0,
+    is_estimated: true, is_new: true, showSuggestions: false, suggestions: [],
+  })
+}
+
+function addFromGrid(p: Product) {
   const existing = items.find(i => i.product_id === p.id)
   if (existing) { existing.quantity++; return }
   const lastCost = lastCostMap.get(p.id)
   items.push({
-    product_id: p.id,
-    product_name: p.name,
+    _key: nextKey++, product_id: p.id, product_name: p.name,
     specification: p.specification || '',
     category_id: (p as any).category_id ?? null,
     category_name: (p as any).category_name || '',
     quantity: 1,
-    selling_price: p.reference_price || 0,
     unit_cost: lastCost?.cost ?? p.cost_price ?? 0,
     is_estimated: lastCost?.is_estimated ?? (p.cost_price_auto ?? true),
-    is_new: false,
+    is_new: false, showSuggestions: false, suggestions: [],
   })
 }
 
-/** Add new product by name */
-function addNewProduct() {
-  const name = newProductName.value.trim()
-  if (!name) return
-  // Check if already in cart
-  if (items.find(i => i.product_name === name)) { newProductName.value = ''; return }
-  items.push({
-    product_id: null,
-    product_name: name,
-    specification: '',
-    category_id: null,
-    category_name: '',
-    quantity: 1,
-    selling_price: 0,
-    unit_cost: 0,
-    is_estimated: true,
-    is_new: true,
-  })
-  newProductName.value = ''
+function onProductNameInput(idx: number) {
+  const item = items[idx]
+  const q = item.product_name.trim().toLowerCase()
+  if (!q) { item.suggestions = []; item.is_new = true; item.product_id = null; return }
+  item.suggestions = allProducts.value.filter(p =>
+    p.name.toLowerCase().includes(q) || (p.specification && p.specification.toLowerCase().includes(q))
+  ).slice(0, 8)
+  const exact = allProducts.value.find(p => p.name.toLowerCase() === q)
+  if (exact) {
+    item.is_new = false; item.product_id = exact.id
+    item.specification = exact.specification || ''
+    item.category_id = (exact as any).category_id ?? null
+    item.category_name = (exact as any).category_name || ''
+    const lastCost = lastCostMap.get(exact.id)
+    if (lastCost) { item.unit_cost = lastCost.cost; item.is_estimated = lastCost.is_estimated }
+    else if (exact.cost_price > 0) { item.unit_cost = exact.cost_price; item.is_estimated = (exact as any).cost_price_auto ?? false }
+  } else { item.is_new = true; item.product_id = null }
 }
 
-function decrement(idx: number) {
-  if (items[idx].quantity <= 1) { items.splice(idx, 1) } else { items[idx].quantity-- }
+function selectProduct(idx: number, product: Product) {
+  const item = items[idx]
+  item.product_id = product.id; item.product_name = product.name
+  item.specification = product.specification || ''
+  item.category_id = (product as any).category_id ?? null
+  item.category_name = (product as any).category_name || ''
+  item.is_new = false
+  const lastCost = lastCostMap.get(product.id)
+  if (lastCost) { item.unit_cost = lastCost.cost; item.is_estimated = lastCost.is_estimated }
+  else if (product.cost_price > 0) { item.unit_cost = product.cost_price; item.is_estimated = (product as any).cost_price_auto ?? false }
+  item.suggestions = []; item.showSuggestions = false
 }
 
-/** Load products from server */
+function hideSuggestions(idx: number) { setTimeout(() => { items[idx].showSuggestions = false }, 200) }
+
 async function loadProducts(opts?: { search?: string; category_id?: number; limit?: number }) {
   const params: Record<string, any> = { limit: opts?.limit ?? 30 }
   if (opts?.search) params.search = opts.search
@@ -262,23 +282,19 @@ async function loadProducts(opts?: { search?: string; category_id?: number; limi
 }
 
 function selectCategory(catId: number | null) {
-  selectedCategoryId.value = catId
-  searchQuery.value = ''
+  selectedCategoryId.value = catId; searchQuery.value = ''
   loadProducts({ category_id: catId ?? undefined })
 }
 
 const debouncedSearch = useDebounceFn(() => {
-  const q = searchQuery.value.trim()
-  selectedCategoryId.value = null
+  const q = searchQuery.value.trim(); selectedCategoryId.value = null
   loadProducts(q ? { search: q, limit: 50 } : undefined)
 }, 300)
 
 async function doSubmit() {
   if (!canSubmit.value || !warehouseId.value) return
   saving.value = true; result.value = null
-
   try {
-    // Create new products first
     for (const item of items) {
       if (item.is_new && !item.product_id) {
         let categoryId = item.category_id
@@ -286,19 +302,13 @@ async function doSubmit() {
           const existing = categories.value.find(c => c.name === item.category_name.trim())
           if (existing) { categoryId = existing.id }
           else {
-            const { data: catData, error: catErr } = await createCategory({ name: item.category_name.trim(), sort_order: 999 } as any)
+            const { data: catData } = await createCategory({ name: item.category_name.trim(), sort_order: 999 } as any)
             if (catData) { categoryId = catData.id; categories.value.push(catData as any) }
-            else if (catErr && catErr.includes('已存在')) {
-              const catRes = await fetchCategories()
-              if (catRes.data) categories.value = catRes.data as any
-              const found = categories.value.find(c => c.name === item.category_name.trim())
-              if (found) categoryId = found.id
-            }
           }
         }
         const { data, error } = await createProduct({
           name: item.product_name.trim(), specification: item.specification.trim() || null,
-          category_id: categoryId, reference_price: item.selling_price,
+          category_id: categoryId, reference_price: 0,
           cost_price: item.unit_cost || 0, cost_price_auto: item.unit_cost <= 0,
           unit: '个', is_active: true, min_stock: 0,
         } as any)
@@ -306,13 +316,12 @@ async function doSubmit() {
         item.product_id = data!.id
       }
     }
-
     if (isOrderedOnly.value) {
       const { error } = await createPurchaseOrder({
         supplier_id: supplierId.value, warehouse_id: warehouseId.value,
         items: items.map(i => ({
           product_id: i.product_id!, quantity: i.quantity,
-          selling_price: i.selling_price, unit_cost: i.unit_cost || 0,
+          selling_price: 0, unit_cost: i.unit_cost || 0,
           is_estimated: i.is_estimated || i.unit_cost <= 0,
         })),
       })
@@ -355,6 +364,8 @@ onMounted(async () => {
   if (whRes.data) { warehouses.value = whRes.data; warehouseId.value = whRes.data[0]?.id ?? null }
   if (supRes.data) suppliers.value = supRes.data
   if (catRes.data) categories.value = catRes.data as any
+  const prodRes = await fetchProducts({ limit: 5000 })
+  if (prodRes.data) allProducts.value = prodRes.data
   loadProducts({ limit: 30 })
   loadLastCostPrices()
 })
