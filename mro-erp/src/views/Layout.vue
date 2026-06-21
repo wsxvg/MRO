@@ -269,7 +269,7 @@ const pendingPurchaseCount = ref(0)
 const navItems = computed<NavItem[]>(() => [
   { label: '仪表板', path: '/dashboard', icon: 'home' },
   { label: '库存查询', path: '/products', icon: 'cube' },
-  { label: '进货入库', path: '/stock/in', icon: 'download', badge: pendingPurchaseCount.value },
+  { label: '采购管理', path: '/stock/in', icon: 'download', badge: pendingPurchaseCount.value },
   { label: '销售管理', path: '/sales', icon: 'receipt', badge: pendingDeliveryCount.value },
   { label: '客户管理', path: '/customers', icon: 'users' },
   { label: '系统设置', path: '/settings/warehouses', icon: 'gear' },
