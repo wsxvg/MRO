@@ -23,6 +23,7 @@
         <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors" @click="fetchData">查询</button>
         <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" @click="resetFilters">重置</button>
         <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors" @click="exportExcel">导出 Excel</button>
+        <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" @click="showPrintDialog = true">打印对账单</button>
       </div>
     </div>
 
@@ -84,18 +85,30 @@
       </BaseCard>
     </div>
   </div>
+
+  <PrintStatement
+    :visible="showPrintDialog"
+    :customer-name="selectedCustomerName"
+    :date-from="dateFrom || '全部'"
+    :date-to="dateTo || '全部'"
+    :rows="printRows"
+    :unpaid-total="unpaidTotal"
+    @close="showPrintDialog = false"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { fetchSalesOrders } from '@/api'
 import { fetchCustomers } from '@/api'
+import { useExcelExport } from '@/composables/useExcelExport'
 import type { Customer } from '@/types'
 import BasePageHeader from '@/components/BasePageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 import BaseCard from '@/components/BaseCard.vue'
 import BaseTable from '@/components/BaseTable.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import PrintStatement from '@/views/reports/PrintStatement.vue'
 
 const customers = ref<Customer[]>([])
 const list = ref<any[]>([])
@@ -103,8 +116,25 @@ const loading = ref(false)
 const customerId = ref<number | ''>('')
 const dateFrom = ref('')
 const dateTo = ref('')
+const showPrintDialog = ref(false)
 
 const stats = reactive({ totalSales: 0, totalPaid: 0 })
+
+const selectedCustomerName = computed(() => {
+  if (!customerId.value) return '全部客户'
+  return customers.value.find(c => c.id === customerId.value)?.name || '全部客户'
+})
+
+const printRows = computed(() =>
+  list.value.map(o => ({
+    date: o.created_at?.slice(0, 10) || '',
+    type: '订单' as const,
+    order_no: o.order_no,
+    amount: o.total_amount || 0,
+  }))
+)
+
+const unpaidTotal = computed(() => stats.totalSales - stats.totalPaid)
 
 function resetFilters() {
   customerId.value = ''
