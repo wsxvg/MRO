@@ -300,7 +300,7 @@ import gsap from 'gsap'
 const router = useRouter()
 const auth = useAuthStore()
 
-const SECURITY_QUESTION = auth.SECURITY_QUESTION
+const SECURITY_QUESTION = auth.securityQuestion
 
 // Form state
 const username = ref('')

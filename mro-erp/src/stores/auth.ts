@@ -4,13 +4,14 @@ import { supabase } from '@/lib/supabase'
 
 const DEFAULT_USERNAME = 'huiyou'
 const DEFAULT_EMAIL = 'huiyou@mro-dev.xyz'
-const SECURITY_QUESTION = '王道硕的手机号是什么'
-const SECURITY_ANSWER = '17826038535'
+const DEFAULT_SECURITY_QUESTION = '王道硕的手机号是什么'
+const DEFAULT_SECURITY_ANSWER = '17826038535'
 
 export const useAuthStore = defineStore('auth', () => {
   const loggedIn = ref(false)
   const loading = ref(false)
   const initialized = ref(false)
+  const securityQuestion = ref(DEFAULT_SECURITY_QUESTION)
   let authListener: { data: { subscription: { unsubscribe: () => void } } } | null = null
 
   const isLoggedIn = computed(() => loggedIn.value)
@@ -23,6 +24,20 @@ export const useAuthStore = defineStore('auth', () => {
       const { data: { session } } = await supabase.auth.getSession()
       loggedIn.value = !!session
       initialized.value = true
+
+      // 从数据库获取安全问题（降级到默认值）
+      try {
+        const { data: config } = await supabase
+          .from('app_config')
+          .select('value')
+          .eq('key', 'security_question')
+          .maybeSingle()
+        if (config?.value) {
+          securityQuestion.value = config.value
+        }
+      } catch {
+        // app_config 表不存在，使用默认值
+      }
     })()
 
     // Listen for auth state changes
@@ -66,7 +81,22 @@ export const useAuthStore = defineStore('auth', () => {
   async function changePassword(answer: string, newPassword: string) {
     loading.value = true
     try {
-      if (answer.trim() !== SECURITY_ANSWER) {
+      // 从数据库获取安全答案（降级到硬编码值）
+      let correctAnswer = DEFAULT_SECURITY_ANSWER
+      try {
+        const { data: config } = await supabase
+          .from('app_config')
+          .select('value')
+          .eq('key', 'security_answer')
+          .maybeSingle()
+        if (config?.value) {
+          correctAnswer = config.value
+        }
+      } catch {
+        // app_config 表不存在，使用默认值
+      }
+
+      if (answer.trim() !== correctAnswer) {
         return { success: false as const, error: '安全问题回答错误' }
       }
 
@@ -102,8 +132,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    loggedIn, loading, initialized, isLoggedIn,
-    initialize, login, changePassword, logout,
-    SECURITY_QUESTION, $dispose
+    loggedIn, loading, initialized, isLoggedIn, securityQuestion,
+    initialize, login, changePassword, logout, $dispose
   }
 })
