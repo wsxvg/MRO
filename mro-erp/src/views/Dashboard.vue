@@ -415,6 +415,9 @@ import {
 import { fetchSalesOrders, fetchSalesOrderItems } from '@/api/orders'
 import { fetchPurchaseOrders, fetchPurchaseOrderItems } from '@/api/purchaseOrders'
 import type { SlowProduct, Anomaly } from '@/api/reports'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const loading = ref(true)
 const selectedPeriod = ref<'thisMonth' | 'lastMonth' | 'thisYear'>('thisMonth')
@@ -819,8 +822,19 @@ async function loadData(force = false) {
     animateSales()
     animateTurnover()
     animateLowStock()
+
+    // Desktop notifications
+    if (lowStockCount.value > 0) {
+      sendDesktopNotification('库存预警', `${lowStockCount.value} 个商品库存低于安全线，请及时补货`)
+    }
+    if (anomalies.value.length > 0) {
+      const highSevere = anomalies.value.filter(a => a.severity === 'high')
+      if (highSevere.length > 0) {
+        sendDesktopNotification('异常预警', `发现 ${highSevere.length} 个高优先级异常，请及时处理`)
+      }
+    }
   } catch (e) {
-    console.error('仪表盘数据加载失败', e)
+    toast.error('仪表盘数据加载失败')
   } finally {
     loading.value = false
   }
@@ -829,6 +843,20 @@ async function loadData(force = false) {
 const debouncedReload = useDebounceFn(() => {
   loadData()
 }, 1000)
+
+function sendDesktopNotification(title: string, body: string) {
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/icons/icon-192x192.png' })
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification(title, { body, icon: '/icons/icon-192x192.png' })
+        }
+      })
+    }
+  }
+}
 
 watch(selectedPeriod, () => {
   loadData()
