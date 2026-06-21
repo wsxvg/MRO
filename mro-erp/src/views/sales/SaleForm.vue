@@ -128,6 +128,7 @@
 
         <!-- Actions -->
         <div class="flex gap-3">
+          <button v-if="isEdit" class="btn-secondary" @click="showPrintDialog = true">打印销售单</button>
           <button class="btn-primary flex-1" :disabled="saving" @click="saveAsPending">
             <svg v-if="saving" class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -148,11 +149,19 @@
       </div>
     </div>
   </div>
+
+  <PrintSalesOrder
+    :visible="showPrintDialog"
+    :order="formData as SalesOrder"
+    :items="items as any"
+    @close="showPrintDialog = false"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
+import PrintSalesOrder from '@/views/sales/PrintSalesOrder.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchSalesOrder, createSalesOrder, updateSalesOrder, completeSalesOrder, fetchSalesOrderItems, saveSalesOrderItems, fetchPaymentRecords } from '@/api'
 import { fetchCustomers } from '@/api'
@@ -163,6 +172,7 @@ import type { Customer, Warehouse, Product, SalesOrder, PaymentRecord } from '@/
 const route = useRoute(); const router = useRouter()
 const isEdit = !!route.params.id
 const saving = ref(false); const error = ref('')
+const showPrintDialog = ref(false)
 const customers = ref<Customer[]>([])
 const warehouses = ref<Warehouse[]>([])
 const products = ref<Product[]>([])
