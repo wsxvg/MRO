@@ -13,6 +13,7 @@
           </select>
         </div>
         <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors" @click="fetchData">查询</button>
+        <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" @click="exportExcel">导出 Excel</button>
       </div>
     </div>
 
@@ -81,6 +82,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { fetchStockReport } from '@/api'
 import { fetchWarehouses } from '@/api'
+import { useExcelExport } from '@/composables/useExcelExport'
 import type { Warehouse } from '@/types'
 import BasePageHeader from '@/components/BasePageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
@@ -94,6 +96,19 @@ const loading = ref(false)
 const warehouseId = ref<number | ''>('')
 
 const stats = reactive({ productCount: 0, totalQuantity: 0, totalValue: 0, lowStockCount: 0 })
+
+const { exportExcel } = useExcelExport(
+  [
+    { key: 'product_name', label: '商品名称', width: 20 },
+    { key: 'warehouse_name', label: '仓库', width: 12 },
+    { key: 'quantity', label: '库存数量', width: 10 },
+    { key: 'min_stock', label: '安全库存', width: 10 },
+    { key: 'cost_price', label: '进价', width: 10, format: (v: number) => v.toFixed(2) },
+    { key: 'stock_value', label: '库存价值', width: 12, format: (v: number) => v.toFixed(2) },
+  ],
+  list,
+  '库存报表'
+)
 
 async function fetchData() {
   loading.value = true

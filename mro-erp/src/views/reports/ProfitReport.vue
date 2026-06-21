@@ -15,6 +15,7 @@
         </div>
         <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors" @click="fetchData">查询</button>
         <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" @click="resetFilters">本月</button>
+        <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" @click="exportExcel">导出 Excel</button>
       </div>
     </div>
 
@@ -94,16 +95,33 @@
 import { ref, reactive, onMounted } from 'vue'
 import { fetchProfitReport } from '@/api/reports'
 import type { ProfitRow } from '@/api/reports'
+import { useExcelExport } from '@/composables/useExcelExport'
 import BasePageHeader from '@/components/BasePageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 import BaseCard from '@/components/BaseCard.vue'
 import BaseTable from '@/components/BaseTable.vue'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const loading = ref(false)
 const dateFrom = ref('')
 const dateTo = ref('')
 const profitData = ref<ProfitRow[]>([])
 const profitStats = reactive({ salesAmount: 0, costAmount: 0, grossProfit: 0, marginRate: '0.00' })
+
+const { exportExcel } = useExcelExport(
+  [
+    { key: 'order_no', label: '订单号', width: 18 },
+    { key: 'customer_name', label: '客户', width: 12 },
+    { key: 'created_at', label: '日期', width: 12, format: (v: string) => v?.slice(0, 10) ?? '' },
+    { key: 'total_amount', label: '销售额', width: 12, format: (v: number) => v.toFixed(2) },
+    { key: 'cost_amount', label: '成本', width: 12, format: (v: number) => v.toFixed(2) },
+    { key: 'gross_profit', label: '毛利', width: 12, format: (v: number) => v.toFixed(2) },
+    { key: 'margin_rate', label: '利润率', width: 10, format: (v: string) => v + '%' },
+  ],
+  profitData,
+  '利润报表'
+)
 
 function resetFilters() {
   const now = new Date()
@@ -119,7 +137,7 @@ async function fetchData() {
     date_to: dateTo.value || undefined,
   })
   if (result.error) {
-    console.error('加载利润报表失败:', result.error)
+    toast.error('加载利润报表失败')
   } else {
     profitData.value = result.data ?? []
     let totalSales = 0, totalCost = 0

@@ -15,6 +15,7 @@
         </div>
         <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors" @click="fetchData">查询</button>
         <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" @click="resetFilters">本月</button>
+        <button class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" @click="exportExcel">导出 Excel</button>
       </div>
     </div>
 
@@ -69,6 +70,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { fetchSalesSummary } from '@/api'
+import { useExcelExport } from '@/composables/useExcelExport'
 import BasePageHeader from '@/components/BasePageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 import BaseCard from '@/components/BaseCard.vue'
@@ -79,6 +81,16 @@ const dateFrom = ref('')
 const dateTo = ref('')
 const dailyData = ref<{ date: string; total_amount: number; order_count: number }[]>([])
 const summary = reactive({ totalAmount: 0, totalOrders: 0, dailyAverage: 0 })
+
+const { exportExcel } = useExcelExport(
+  [
+    { key: 'date', label: '日期', width: 12 },
+    { key: 'total_amount', label: '销售总额', width: 14, format: (v: number) => v.toFixed(2) },
+    { key: 'order_count', label: '订单数量', width: 10 },
+  ],
+  dailyData,
+  '销售报表'
+)
 
 function resetFilters() {
   const now = new Date()
