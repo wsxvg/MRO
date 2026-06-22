@@ -2,6 +2,7 @@
   <div class="page-padding">
     <BasePageHeader title="销售管理">
       <div class="flex gap-3">
+        <button class="btn-secondary text-sm" @click="openReturnFromHeader">🔄 发起退货</button>
         <button class="btn-secondary text-sm" @click="showStatementDialog = true">导出对账单</button>
         <router-link to="/sales/quick" class="btn-primary text-sm">🏪 销售商品</router-link>
       </div>
@@ -248,6 +249,21 @@
       </div>
     </div>
 
+    <!-- Header Return Dialog -->
+    <div v-if="headerReturnVisible" class="fixed inset-0 bg-black/10 flex items-center justify-center z-50" @click.self="headerReturnVisible = false">
+      <div class="bg-white rounded-xl p-6 w-full max-w-md">
+        <h3 class="text-lg font-semibold mb-4">选择要退货的订单</h3>
+        <select v-model="headerReturnOrderId" class="input w-full mb-4">
+          <option :value="null">请选择已完成的订单</option>
+          <option v-for="o in completedOrders" :key="o.id" :value="o.id">{{ o.order_no }} - {{ o.customer_name || '零售' }} - ¥{{ (o.total_amount || 0).toFixed(2) }}</option>
+        </select>
+        <div class="flex gap-3 justify-end">
+          <button class="btn-secondary text-sm" @click="headerReturnVisible = false">取消</button>
+          <button class="btn-primary text-sm" :disabled="!headerReturnOrderId" @click="confirmHeaderReturn">确认</button>
+        </div>
+      </div>
+    </div>
+
     <ConfirmDialog
       v-model="showRevokeConfirm"
       title="确认撤回"
@@ -409,6 +425,22 @@ async function openReturn(order: SalesOrder) {
     ...item,
     return_qty: 0,
   }))
+}
+
+const headerReturnVisible = ref(false)
+const headerReturnOrderId = ref<number | null>(null)
+
+function openReturnFromHeader() {
+  headerReturnOrderId.value = null
+  headerReturnVisible.value = true
+}
+
+async function confirmHeaderReturn() {
+  if (!headerReturnOrderId.value) return
+  const order = completedOrders.value.find(o => o.id === headerReturnOrderId.value)
+  if (!order) return
+  headerReturnVisible.value = false
+  await openReturn(order)
 }
 
 async function handleReturn() {

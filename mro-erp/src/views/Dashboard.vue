@@ -263,6 +263,15 @@
         </div>
       </div>
 
+      <!-- Analysis Section (collapsible) -->
+      <div class="mb-6">
+        <button class="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors mb-4" @click="showAnalysis = !showAnalysis">
+          <svg class="w-4 h-4 transition-transform" :class="showAnalysis ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+          数据分析
+          <span class="text-xs text-gray-400 font-normal">{{ showAnalysis ? '收起' : '展开' }}</span>
+        </button>
+
+        <template v-if="showAnalysis">
       <!-- Row 5: Hot Products -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- Hot by Quantity -->
@@ -382,6 +391,9 @@
         </div>
       </div>
 
+        </template>
+      </div>
+
     </template>
   </div>
 </template>
@@ -420,6 +432,7 @@ import { useToast } from '@/composables/useToast'
 const toast = useToast()
 
 const loading = ref(true)
+const showAnalysis = ref(false)
 const selectedPeriod = ref<'thisMonth' | 'lastMonth' | 'thisYear'>('thisMonth')
 
 // KPI data

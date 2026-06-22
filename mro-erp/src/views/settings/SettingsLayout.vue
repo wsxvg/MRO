@@ -5,6 +5,15 @@
       <div class="p-4 border-b border-gray-100">
         <h2 class="text-sm font-semibold text-gray-900">系统设置</h2>
       </div>
+      <!-- Quick links -->
+      <div class="px-3 py-3 border-b border-gray-100">
+        <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-2">常用</p>
+        <div class="flex flex-wrap gap-1.5">
+          <router-link to="/settings/categories" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">分类</router-link>
+          <router-link to="/settings/suppliers" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">供应商</router-link>
+          <router-link to="/settings/units" class="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">单位</router-link>
+        </div>
+      </div>
       <nav class="p-2 space-y-1">
         <router-link
           v-for="item in settingsNav"
