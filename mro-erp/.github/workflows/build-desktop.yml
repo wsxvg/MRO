@@ -1,0 +1,87 @@
+# 构建 Tauri 桌面端并发布到 GitHub Releases
+# 用户桌面端启动时自动检查更新
+name: Build & Release Desktop
+
+on:
+  push:
+    tags:
+      - 'v*'  # 推送 v 开头的 tag 时触发，如 v1.0.1
+  workflow_dispatch:  # 手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+          # - platform: ubuntu-22.04
+          #   target: x86_64-unknown-linux-gnu
+          # - platform: macos-latest
+          #   target: aarch64-apple-darwin
+
+    runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        working-directory: mro-erp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: mro-erp/package-lock.json
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          releaseId: ${{ github.event.release.id }}
+          releaseVersion: ${{ github.ref_name }}
+          releaseBody: 'See the assets below to download and install this version.'
+          releaseDraft: false
+          prerelease: false
+          updaterJsonPreferNsis: true
+
+      - name: Upload latest.json to GitHub Pages
+        if: matrix.platform == 'windows-latest'
+        run: |
+          # 下载 latest.json 并上传到 gh-pages 分支
+          RELEASE_TAG="${{ github.ref_name }}"
+          LATEST_JSON_URL="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/latest.json"
+          curl -sL "$LATEST_JSON_URL" -o latest.json || echo "latest.json not found, skipping"
+          if [ -f latest.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git fetch origin gh-pages || git checkout --orphan gh-pages
+            git checkout gh-pages
+            mkdir -p MRO
+            cp latest.json MRO/latest.json
+            git add MRO/latest.json
+            git commit -m "chore: update latest.json for ${RELEASE_TAG}" || echo "No changes to commit"
+            git push origin gh-pages || echo "Failed to push to gh-pages"
+          fi
