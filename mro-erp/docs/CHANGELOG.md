@@ -36,6 +36,31 @@
 
 ---
 
+### 2026-06-21
+
+#### 改进项（全部完成）
+- 安全答案从硬编码迁移到数据库（app_config 表）
+- 补充 README 项目文档
+- 销售单/对账单打印功能
+- 三个报表 Excel 导出（抽离 useExcelExport composable）
+- 桌面通知预警
+- 侧边栏"进货入库"→"采购管理"
+
+#### UX 优化（全部完成）
+- 打印入口统一到 SaleForm 详情页（销售单/送货单/报价单）
+- SaleList 撤回操作改用 ConfirmDialog（替换 window.confirm）
+- 页面标题统一（StockImport "进货入库"→"采购管理"）
+- SettingsLayout 顶部加常用设置快捷链接（分类/供应商/单位）
+- Dashboard 分析区（热销+异常+滞销）默认折叠
+- SaleList 顶部加"发起退货"按钮
+
+#### 桌面端自动更新
+- 新增 GitHub Actions 工作流 `build-desktop.yml`
+- 推送 `v*` tag 自动构建 exe + 安装包并发布到 Releases
+- 桌面端启动时自动检查更新（通过 GitHub Pages 的 latest.json）
+
+---
+
 ## 已知问题
 
 1. ~~**安全答案硬编码**：`stores/auth.ts` 中安全问题答案直接写在代码里~~ ✅ 已修复（v1.0.0+）
