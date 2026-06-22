@@ -100,17 +100,36 @@
 
         <!-- Footer -->
         <div v-if="items.length > 0" class="border-t border-gray-100 px-4 py-3 space-y-3">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="isOrderedOnly" class="rounded border-gray-300" />
-            <span class="text-sm text-gray-700">货还没到（仅下单）</span>
-          </label>
+          <!-- Mode selection cards -->
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all"
+              :class="!isOrderedOnly ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'"
+              @click="isOrderedOnly = false"
+            >
+              <span class="text-lg">✅</span>
+              <span class="text-xs font-semibold" :class="!isOrderedOnly ? 'text-green-700' : 'text-gray-700'">直接入库</span>
+              <span class="text-[10px]" :class="!isOrderedOnly ? 'text-green-600' : 'text-gray-400'">库存立即增加</span>
+            </button>
+            <button
+              type="button"
+              class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all"
+              :class="isOrderedOnly ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'"
+              @click="isOrderedOnly = true"
+            >
+              <span class="text-lg">📦</span>
+              <span class="text-xs font-semibold" :class="isOrderedOnly ? 'text-blue-700' : 'text-gray-700'">采购下单</span>
+              <span class="text-[10px]" :class="isOrderedOnly ? 'text-blue-600' : 'text-gray-400'">等供应商发货</span>
+            </button>
+          </div>
           <div class="flex gap-2">
             <button class="btn-primary flex-1 py-3 text-base font-semibold" :disabled="saving || !canSubmit" @click="doSubmit">
               {{ saving ? '处理中...' : (isOrderedOnly ? '📦 确认下单' : '✅ 确认进货') }}
             </button>
           </div>
           <div v-if="result" class="rounded-lg p-2 text-xs" :class="result.error ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'">
-            {{ result.error || (isOrderedOnly ? '已下单，等待到货' : '已成功入库') }}
+            {{ result.error || (isOrderedOnly ? '已下单，到采购管理页确认收货' : '已成功入库') }}
           </div>
         </div>
 
