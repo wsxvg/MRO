@@ -2,8 +2,8 @@
   <div class="page-padding">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold text-gray-900">进货入库</h1>
-      <router-link to="/stock/in/new" class="btn-primary text-sm">📥 进货</router-link>
+      <h1 class="text-2xl font-bold text-gray-900">采购管理</h1>
+      <router-link to="/stock/in/new" class="btn-primary text-sm">📥 新建采购</router-link>
     </div>
 
     <!-- 待到货区域 -->
@@ -152,6 +152,9 @@ import { ref, reactive, onMounted } from 'vue'
 import { fetchPurchaseOrders, fetchPurchaseOrderItems, completePurchaseOrder, cancelPurchaseOrder } from '@/api/purchaseOrders'
 import { supabase } from '@/lib/supabase'
 import type { PurchaseOrder, PurchaseOrderItem } from '@/api/purchaseOrders'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const pendingOrders = ref<(PurchaseOrder & { item_summary?: string })[]>([])
 const pendingLoading = ref(true)
@@ -190,7 +193,7 @@ async function fetchPending() {
       }
       pendingOrders.value = res.data.map(order => ({ ...order, item_summary: (itemsByOrder.get(order.id) ?? []).join(', ') }))
     } else { pendingOrders.value = [] }
-  } catch (e) { console.error('加载待到货失败', e) }
+  } catch (e) { toast.error('加载待到货失败') }
   finally { pendingLoading.value = false }
 }
 
@@ -209,7 +212,7 @@ async function fetchCompleted() {
       }
       completedOrders.value = res.data.map(order => ({ ...order, item_summary: (itemsByOrder.get(order.id) ?? []).join(', ') }))
     } else { completedOrders.value = [] }
-  } catch (e) { console.error('加载入库记录失败', e) }
+  } catch (e) { toast.error('加载入库记录失败') }
   finally { completedLoading.value = false }
 }
 
@@ -232,10 +235,10 @@ async function confirmReceive() {
   }
   try {
     const { error } = await completePurchaseOrder(receiveDialog.orderId, priceOverrides)
-    if (error) { alert('入库失败: ' + error) } else {
+    if (error) { toast.error('入库失败: ' + error) } else {
       receiveDialog.visible = false; fetchPending(); fetchCompleted()
     }
-  } catch (e) { alert('入库失败') }
+  } catch (e) { toast.error('入库失败') }
   finally { receiveDialog.saving = false }
 }
 

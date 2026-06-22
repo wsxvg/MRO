@@ -119,8 +119,7 @@
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">订单详情</h3>
           <div class="flex items-center gap-2">
-            <button v-if="detailOrder" class="btn-secondary text-sm" @click="printDeliveryVisible = true">🖨️ 打印送货单</button>
-            <button v-if="detailOrder" class="btn-secondary text-sm" @click="printQuoteVisible = true">📋 生成报价单</button>
+            <router-link v-if="detailOrder" :to="`/sales/${detailOrder.id}`" class="btn-secondary text-sm" @click="detailVisible = false">查看完整订单</router-link>
             <button class="text-gray-400 hover:text-gray-600" @click="detailVisible = false">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -249,20 +248,13 @@
       </div>
     </div>
 
-    <!-- Print Delivery Note -->
-    <PrintDeliveryNote
-      :visible="printDeliveryVisible"
-      :order="detailOrder ?? {} as SalesOrder"
-      :items="detailItems"
-      @close="printDeliveryVisible = false"
-    />
-
-    <!-- Print Quote -->
-    <PrintQuote
-      :visible="printQuoteVisible"
-      :order="detailOrder ?? {} as SalesOrder"
-      :items="detailItems"
-      @close="printQuoteVisible = false"
+    <ConfirmDialog
+      v-model="showRevokeConfirm"
+      title="确认撤回"
+      message="确定撤回此订单？库存将恢复，订单将被删除。"
+      confirm-text="确认撤回"
+      @confirm="confirmRevoke"
+      @cancel="showRevokeConfirm = false; revokeTargetId = null"
     />
   </div>
 </template>
@@ -273,8 +265,10 @@ import { fetchSalesOrders, fetchSalesOrder, fetchSalesOrderItems, completeSalesO
 import { fetchStatementData, exportStatementExcel } from '@/lib/statementExport'
 import type { SalesOrder, SalesOrderItem, Customer } from '@/types'
 import BasePageHeader from '@/components/BasePageHeader.vue'
-import PrintDeliveryNote from '@/views/sales/PrintDeliveryNote.vue'
-import PrintQuote from '@/views/sales/PrintQuote.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 // Pending deliveries
 const pendingOrders = ref<(SalesOrder & { item_summary?: string })[]>([])
@@ -299,9 +293,9 @@ const returnOrder = ref<SalesOrder | null>(null)
 const returnItems = ref<(SalesOrderItem & { return_qty: number })[]>([])
 const hasReturnItems = computed(() => returnItems.value.some(i => i.return_qty > 0))
 
-// Print delivery note
-const printDeliveryVisible = ref(false)
-const printQuoteVisible = ref(false)
+// Revoke confirm
+const showRevokeConfirm = ref(false)
+const revokeTargetId = ref<number | null>(null)
 
 // Statement export
 const showStatementDialog = ref(false)
@@ -349,7 +343,7 @@ async function fetchPending() {
       pendingOrders.value = []
     }
   } catch (e) {
-    console.error('加载待发货列表失败', e)
+    toast.error('加载待发货列表失败')
   } finally {
     pendingLoading.value = false
   }
@@ -388,11 +382,19 @@ async function viewOrder(orderId: number) {
 }
 
 async function handleRevoke(orderId: number) {
-  if (!confirm('确定撤回此订单？库存将恢复，订单将被删除。')) return
+  revokeTargetId.value = orderId
+  showRevokeConfirm.value = true
+}
+
+async function confirmRevoke() {
+  if (!revokeTargetId.value) return
+  const orderId = revokeTargetId.value
+  showRevokeConfirm.value = false
+  revokeTargetId.value = null
   const { error: reverseErr } = await reverseSalesOrder(orderId)
-  if (reverseErr) { alert('撤回失败: ' + reverseErr); return }
+  if (reverseErr) { toast.error('撤回失败: ' + reverseErr); return }
   const { error: deleteErr } = await deleteSalesOrder(orderId)
-  if (deleteErr) { alert('删除订单失败: ' + deleteErr + '，但库存已恢复'); }
+  if (deleteErr) { toast.error('删除订单失败: ' + deleteErr + '，但库存已恢复'); }
   fetchPending()
   fetchCompleted()
 }

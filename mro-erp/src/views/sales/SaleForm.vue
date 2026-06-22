@@ -129,6 +129,8 @@
         <!-- Actions -->
         <div class="flex gap-3">
           <button v-if="isEdit" class="btn-secondary" @click="showPrintDialog = true">打印销售单</button>
+          <button v-if="isEdit" class="btn-secondary" @click="showPrintDelivery = true">打印送货单</button>
+          <button v-if="isEdit" class="btn-secondary" @click="showPrintQuote = true">打印报价单</button>
           <button class="btn-primary flex-1" :disabled="saving" @click="saveAsPending">
             <svg v-if="saving" class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -156,12 +158,26 @@
     :items="items as any"
     @close="showPrintDialog = false"
   />
+  <PrintDeliveryNote
+    :visible="showPrintDelivery"
+    :order="formData as SalesOrder"
+    :items="items as any"
+    @close="showPrintDelivery = false"
+  />
+  <PrintQuote
+    :visible="showPrintQuote"
+    :order="formData as SalesOrder"
+    :items="items as any"
+    @close="showPrintQuote = false"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import PrintSalesOrder from '@/views/sales/PrintSalesOrder.vue'
+import PrintDeliveryNote from '@/views/sales/PrintDeliveryNote.vue'
+import PrintQuote from '@/views/sales/PrintQuote.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchSalesOrder, createSalesOrder, updateSalesOrder, completeSalesOrder, fetchSalesOrderItems, saveSalesOrderItems, fetchPaymentRecords } from '@/api'
 import { fetchCustomers } from '@/api'
@@ -173,6 +189,8 @@ const route = useRoute(); const router = useRouter()
 const isEdit = !!route.params.id
 const saving = ref(false); const error = ref('')
 const showPrintDialog = ref(false)
+const showPrintDelivery = ref(false)
+const showPrintQuote = ref(false)
 const customers = ref<Customer[]>([])
 const warehouses = ref<Warehouse[]>([])
 const products = ref<Product[]>([])
