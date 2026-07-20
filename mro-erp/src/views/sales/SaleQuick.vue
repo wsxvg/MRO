@@ -39,9 +39,9 @@
             <!-- 毛利色条 -->
             <div v-if="marginGradient(item)" class="flex-shrink-0 flex items-center gap-1.5" :title="marginTip(item)">
               <div class="w-8 h-1.5 rounded-full overflow-hidden" :style="{ background: '#e5e7eb' }">
-                <div class="h-full rounded-full transition-all duration-300" :style="{ width: marginGradient(item).pct + '%', background: marginGradient(item).color }"></div>
+                <div class="h-full rounded-full transition-all duration-300" :style="{ width: (marginGradient(item)?.pct ?? 0) + '%', background: marginGradient(item)?.color ?? '#e5e7eb' }"></div>
               </div>
-              <span class="text-[11px] font-semibold" :style="{ color: marginGradient(item).color }">{{ marginGradient(item).label }}</span>
+              <span class="text-[11px] font-semibold" :style="{ color: marginGradient(item)?.color }">{{ marginGradient(item)?.label }}</span>
             </div>
             <span v-else class="w-1.5 h-1.5 rounded-full bg-primary-300 flex-shrink-0" title="未知进价"></span>
             <div class="flex-1 min-w-0">
