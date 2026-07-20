@@ -1,0 +1,15 @@
+[submodule ".tmp/awesome-design-md"]
+	url = none
+	ignore = all
+[submodule ".tmp/better-icons"]
+	url = none
+	ignore = all
+[submodule ".tmp/taste-skill"]
+	url = none
+	ignore = all
+[submodule ".tmp/ui-skills"]
+	url = none
+	ignore = all
+[submodule ".tmp/ui-ux-pro-max"]
+	url = none
+	ignore = all
