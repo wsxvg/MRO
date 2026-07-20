@@ -16,7 +16,19 @@
       <!-- Left: Form -->
       <div :class="isEdit ? 'flex-1 min-w-0' : 'w-full'">
       <!-- Step 1: Basic Info -->
-      <form @submit.prevent="handleSubmit" class="space-y-5">
+      <div v-if="formLoading" class="bg-white rounded-xl border p-5 space-y-3 animate-pulse">
+        <div class="h-5 bg-primary-100 rounded w-1/3"></div>
+        <div class="h-9 bg-primary-100 rounded-xl"></div>
+        <div class="h-9 bg-primary-100 rounded-xl w-3/4"></div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="h-9 bg-primary-100 rounded-xl"></div>
+          <div class="h-9 bg-primary-100 rounded-xl"></div>
+          <div class="h-9 bg-primary-100 rounded-xl"></div>
+        </div>
+        <div class="h-20 bg-primary-100 rounded-xl"></div>
+      </div>
+
+      <form v-else @submit.prevent="handleSubmit" class="space-y-5">
         <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
           <h2 class="text-base font-semibold text-gray-900 flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-primary-100 text-primary-600 text-xs flex items-center justify-center font-bold">1</span>
@@ -181,6 +193,8 @@ import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+
+const formLoading = ref(true)
 
 // 游客不允许编辑，重定向到商品列表
 const props = withDefaults(defineProps<{
@@ -393,10 +407,11 @@ watch(() => props.productId, () => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   if (auth.isGuest) { router.push('/products'); return }
-  loadCategories()
-  loadUnits()
-  loadProduct()
+  await loadCategories()
+  await loadUnits()
+  await loadProduct()
+  formLoading.value = false
 })
 </script>

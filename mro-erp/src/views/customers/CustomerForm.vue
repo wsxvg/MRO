@@ -12,7 +12,19 @@
       </div>
     </template>
 
-    <div :class="standalone ? '' : ''">
+    <div v-if="formLoading" class="bg-white rounded-xl border p-5 space-y-3 animate-pulse max-w-3xl mx-auto">
+      <div class="h-5 bg-primary-100 rounded w-1/3"></div>
+      <div class="h-9 bg-primary-100 rounded-xl"></div>
+      <div class="h-9 bg-primary-100 rounded-xl"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="h-9 bg-primary-100 rounded-xl"></div>
+        <div class="h-9 bg-primary-100 rounded-xl"></div>
+      </div>
+      <div class="h-20 bg-primary-100 rounded-xl"></div>
+      <div class="flex gap-3"><div class="flex-1 h-10 bg-primary-100 rounded-xl"></div><div class="flex-1 h-10 bg-primary-100 rounded-xl"></div></div>
+    </div>
+
+    <div v-else :class="standalone ? '' : ''">
       <form @submit.prevent="handleSubmit">
         <!-- Main section -->
         <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
@@ -102,7 +114,7 @@ const emit = defineEmits<{
 
 const route = useRoute(); const router = useRouter()
 const isEdit = props.standalone ? !!route.params.id : !!props.customerId
-const saving = ref(false); const error = ref('')
+const saving = ref(false); const error = ref(''); const formLoading = ref(true)
 const form = reactive({ name: '', type: 'retail', contact_person: '', phone: '', address: '', credit_limit: 0, remark: '' })
 
 async function load() {
@@ -114,6 +126,7 @@ async function load() {
     form.phone = d.phone || ''; form.address = d.address || ''
     form.credit_limit = d.credit_limit || 0; form.remark = d.remark || ''
   }
+  formLoading.value = false
 }
 
 async function handleSubmit() {

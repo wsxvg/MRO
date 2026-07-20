@@ -10,7 +10,31 @@
       <h1 class="text-2xl font-bold text-gray-900">{{ isEdit ? '销售单详情' : '新增销售单' }}</h1>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Loading skeleton -->
+    <div v-if="formLoading" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 bg-white rounded-xl border p-5 space-y-3 animate-pulse">
+        <div class="h-5 bg-primary-100 rounded w-1/3"></div>
+        <div class="h-4 bg-primary-100 rounded w-2/3"></div>
+        <div v-for="i in 3" :key="i" class="h-12 bg-primary-100 rounded-lg"></div>
+        <div class="flex justify-between mt-3">
+          <div class="h-6 bg-primary-100 rounded w-1/4"></div>
+          <div class="h-8 bg-primary-100 rounded-xl w-28"></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border p-5 space-y-3 animate-pulse">
+        <div class="h-5 bg-primary-100 rounded w-1/2"></div>
+        <div class="h-9 bg-primary-100 rounded-xl"></div>
+        <div class="h-9 bg-primary-100 rounded-xl"></div>
+        <div class="h-9 bg-primary-100 rounded-xl w-3/4"></div>
+        <div class="h-20 bg-primary-100 rounded-xl"></div>
+        <div class="flex gap-3 mt-4">
+          <div class="flex-1 h-10 bg-primary-100 rounded-xl"></div>
+          <div class="flex-1 h-10 bg-primary-100 rounded-xl"></div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left: 商品明细 -->
       <div class="lg:col-span-2 space-y-6">
         <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
