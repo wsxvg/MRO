@@ -51,10 +51,17 @@
             <span v-else class="text-gray-400">-</span>
           </template>
           <template v-else-if="column.key === 'actions'">
-            <button v-if="(debtMap[row.id] ?? 0) > 0.01" class="text-green-600 hover:text-green-700 text-sm font-medium mr-3" @click="openPayment(row)">收款</button>
-            <router-link :to="`/customers/${row.id}/pricing`" class="text-primary-600 hover:text-primary-700 text-sm mr-3">价格</router-link>
-            <router-link :to="`/customers/${row.id}`" class="text-primary-600 hover:text-primary-700 text-sm mr-3">编辑</router-link>
-            <button class="text-red-600 hover:text-red-700 text-sm" @click="confirmDelete(row)">删除</button>
+            <div class="flex items-center gap-1 justify-end">
+              <button v-if="(debtMap[row.id] ?? 0) > 0.01" class="text-xs font-medium px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 transition-colors" @click="openPayment(row)">收款</button>
+              <router-link :to="`/customers/${row.id}/pricing`" class="text-xs font-medium px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">价格</router-link>
+              <div class="relative" @click.stop>
+                <button class="text-gray-400 hover:text-gray-600 text-xs px-1" @click="toggleRowMenu(row.id)">···</button>
+                <div v-if="openRowMenu === row.id" class="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1 min-w-[80px]">
+                  <router-link :to="`/customers/${row.id}`" class="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">编辑</router-link>
+                  <button class="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50" @click="openRowMenu = null; confirmDelete(row)">删除</button>
+                </div>
+              </div>
+            </div>
           </template>
           <template v-else>
             {{ row[column.key] ?? '-' }}
@@ -193,6 +200,8 @@ const loading = ref(true)
 const error = ref('')
 const showDelete = ref(false)
 const showNewModal = ref(false)
+const openRowMenu = ref<number | null>(null)
+function toggleRowMenu(id: number) { openRowMenu.value = openRowMenu.value === id ? null : id }
 const deleteTarget = ref<Customer | null>(null)
 const page = ref(1)
 const total = ref(0)

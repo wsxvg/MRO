@@ -18,7 +18,7 @@
     <!-- Main Content: Left Cart + Right Products -->
     <div class="flex-1 flex gap-4 min-h-0">
       <!-- === LEFT: Shopping Cart === -->
-      <div class="w-[420px] flex-shrink-0 surface-strong flex flex-col">
+      <div class="w-full lg:w-[380px] flex-shrink-0 surface-strong flex flex-col">
         <!-- Cart Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <div class="flex items-center gap-2">

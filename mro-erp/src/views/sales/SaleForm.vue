@@ -126,25 +126,22 @@
           </div>
         </div>
 
-        <!-- Actions -->
-        <div class="flex gap-3">
-          <button v-if="isEdit" class="btn-secondary" @click="showPrintDialog = true">打印销售单</button>
-          <button v-if="isEdit" class="btn-secondary" @click="showPrintDelivery = true">打印送货单</button>
-          <button v-if="isEdit" class="btn-secondary" @click="showPrintQuote = true">打印报价单</button>
-          <button class="btn-primary flex-1" :disabled="saving" @click="saveAsPending">
-            <svg v-if="saving" class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            {{ saving ? '保存中...' : '保存为待发货' }}
-          </button>
-          <button class="btn-secondary flex-1" :disabled="saving" @click="saveAndComplete">
-            <svg v-if="saving" class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            {{ saving ? '保存中...' : '直接完成' }}
-          </button>
+        <!-- Actions: 主操作先行，打印归入折叠区 -->
+        <div class="space-y-3">
+          <div class="flex gap-3">
+            <button class="btn-primary flex-1" :disabled="saving" @click="saveAsPending">
+              {{ saving ? '保存中...' : '保存为待发货' }}
+            </button>
+            <button class="btn-secondary flex-1" :disabled="saving" @click="saveAndComplete"
+              style="border-color:#059669;color:#059669;background:#ecfdf5">
+              {{ saving ? '保存中...' : '完成并发货' }}
+            </button>
+          </div>
+          <div v-if="isEdit" class="flex gap-2">
+            <button class="btn-secondary text-xs px-3 py-2" @click="showPrintDialog = true"><i class="ri-printer-line mr-1"></i>销售单</button>
+            <button class="btn-secondary text-xs px-3 py-2" @click="showPrintDelivery = true"><i class="ri-truck-line mr-1"></i>送货单</button>
+            <button class="btn-secondary text-xs px-3 py-2" @click="showPrintQuote = true"><i class="ri-file-list-line mr-1"></i>报价单</button>
+          </div>
         </div>
 
         <div v-if="error" class="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">{{ error }}</div>
