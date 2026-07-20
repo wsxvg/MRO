@@ -251,6 +251,11 @@
         </div>
 
         <div class="space-y-1.5">
+          <label for="cp-current" class="text-sm font-medium text-gray-700">当前密码</label>
+          <input id="cp-current" v-model="cpCurrentPassword" type="password" placeholder="输入当前密码" required class="input" />
+        </div>
+
+        <div class="space-y-1.5">
           <label for="cp-new" class="text-sm font-medium text-gray-700">新密码</label>
           <input id="cp-new" v-model="cpNewPassword" type="password" placeholder="输入新密码（至少 3 位）" required minlength="3" class="input" />
         </div>
@@ -313,6 +318,7 @@ const isFieldFocused = ref('')
 // Change password dialog
 const showChangePassword = ref(false)
 const cpAnswer = ref('')
+const cpCurrentPassword = ref('')
 const cpNewPassword = ref('')
 const cpError = ref('')
 const cpSuccess = ref('')
@@ -417,6 +423,7 @@ async function handleLogin() {
 function openChangePassword() {
   showChangePassword.value = true
   cpAnswer.value = ''
+  cpCurrentPassword.value = ''
   cpNewPassword.value = ''
   cpError.value = ''
   cpSuccess.value = ''
@@ -425,6 +432,7 @@ function openChangePassword() {
 function closeChangePassword() {
   showChangePassword.value = false
   cpAnswer.value = ''
+  cpCurrentPassword.value = ''
   cpNewPassword.value = ''
   cpError.value = ''
   cpSuccess.value = ''
@@ -437,6 +445,7 @@ async function handleChangePassword() {
   try {
     const result = await auth.changePassword(
       cpAnswer.value,
+      cpCurrentPassword.value,
       cpNewPassword.value
     )
     if (result.success) {

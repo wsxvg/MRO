@@ -78,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function changePassword(answer: string, newPassword: string) {
+  async function changePassword(answer: string, currentPassword: string, newPassword: string) {
     loading.value = true
     try {
       // 从数据库获取安全答案（降级到硬编码值）
@@ -100,8 +100,17 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false as const, error: '安全问题回答错误' }
       }
 
-      if (!newPassword || newPassword.length < 3) {
-        return { success: false as const, error: '新密码至少3位字符' }
+      if (!currentPassword || !newPassword || newPassword.length < 3) {
+        return { success: false as const, error: '当前密码和新密码至少3位字符' }
+      }
+
+      // 先登录获取会话，才能调用 updateUser 修改密码
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: DEFAULT_EMAIL,
+        password: currentPassword,
+      })
+      if (loginError) {
+        return { success: false as const, error: '当前密码错误' }
       }
 
       const { error } = await supabase.auth.updateUser({ password: newPassword })
