@@ -25,8 +25,11 @@ export const useAuthStore = defineStore('auth', () => {
     if (initPromise) return initPromise
     initPromise = (async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      loggedIn.value = !!session
-      isGuest.value = false // 游客不持久化 session，刷新后需重新点游客按钮
+      // 游客不走 Supabase，保留本地状态
+      if (!isGuest.value) {
+        loggedIn.value = !!session
+        isGuest.value = false
+      }
       initialized.value = true
 
       // 从数据库获取安全问题（降级到默认值）
