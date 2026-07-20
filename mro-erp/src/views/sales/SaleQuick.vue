@@ -61,7 +61,7 @@
             <div class="w-24 text-right">
               <p class="text-sm font-semibold text-gray-900">¥{{ (item.line_total || 0).toFixed(2) }}</p>
             </div>
-            <button class="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" @click="items.splice(idx, 1)">
+            <button class="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" @click="removeItem(idx)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             </button>
           </div>
@@ -78,7 +78,7 @@
         <!-- Cart Footer: Total + Payment + Submit -->
         <div v-if="items.length > 0" class="border-t border-gray-100 px-4 py-3 space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-500">合计 <span class="text-gray-400">({{ items.reduce((s, i) => s + (i.quantity || 0), 0) }} 件)</span></span>
+            <span class="text-sm text-gray-500">合计 <span class="text-gray-400">({{ itemCount }} 件)</span></span>
             <span class="text-xl font-bold text-gray-900">¥{{ total.toFixed(2) }}</span>
           </div>
 
@@ -250,40 +250,38 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import SearchableSelect from '@/components/SearchableSelect.vue'
-import { useDebounceFn } from '@/composables/useDebounce'
 import { useCommonStore } from '@/stores/common'
-import { fetchCustomerPrices, fetchStockByProduct } from '@/api'
-import { fetchDefaultWarehouse } from '@/api'
-import { fetchProducts } from '@/api'
-import { createSalesOrder, saveSalesOrderItems, completeSalesOrder, completeSalesOrderWithWarehouses, deleteSalesOrder } from '@/api'
+import { fetchDefaultWarehouse, fetchStockByProduct, createSalesOrder, saveSalesOrderItems, completeSalesOrder, completeSalesOrderWithWarehouses, deleteSalesOrder } from '@/api'
 import { fetchHotProducts } from '@/api/reports'
-import type { Customer, Product, Category } from '@/types'
+import type { Customer, Category } from '@/types'
+import { useCart } from '@/composables/useCart'
+import { useCustomerPricing } from '@/composables/useCustomerPricing'
+import { useProductSearch } from '@/composables/useProductSearch'
+import { useStockLookup, type StockEntry } from '@/composables/useStockLookup'
 
 const router = useRouter()
 const commonStore = useCommonStore()
+
+// Composables
+const cart = useCart()
+const { items, total, itemCount, calcLine, addProduct, increment, decrement, removeItem, clearCart, marginColor, marginTip } = cart
+const pricing = useCustomerPricing(items, calcLine)
+const { cacheProductPrices, getPriceForProduct, onCustomerChange } = pricing
+const search = useProductSearch()
+const { displayProducts, frequentProducts, searchQuery, selectedCategoryId, loadProducts, selectCategory, debouncedSearch } = search
+const stock = useStockLookup()
+const { hoveredProductId, productStocks, showStock, clearStockCache } = stock
+
+// Local state
 const saving = ref(false); const error = ref(''); const success = ref('')
 const defaultWarehouseId = ref<number | null>(null)
 const customers = ref<Customer[]>([])
 const categories = ref<Category[]>([])
-const displayProducts = ref<Product[]>([])
-const searchQuery = ref('')
-const selectedCategoryId = ref<number | null>(null)
-const hoveredProductId = ref<number | null>(null)
-const frequentProducts = ref<Product[]>([])
-const productsLoading = ref(false)
-const customerPricesMap = new Map<number, number>()
-let customerChangeVersion = 0  // #12: guard against concurrent calls
-const productPricesCache = new Map<number, number>()  // #14: cache all product prices for reset
-const productStocks = reactive<Record<number, { warehouse_id: number; warehouse_name: string; quantity: number }[]>>({})
 
 const form = reactive({
   customer_id: null as string | number | null,
   remark: ''
 })
-
-const items = reactive<{ product_id: number; product_name: string; quantity: number; unit_price: number; cost_price: number; line_total: number }[]>([])
-
-const total = computed(() => items.reduce((s, i) => s + (i.line_total || 0), 0))
 
 // Warehouse selection popup state
 const warehousePopup = reactive({
@@ -314,166 +312,38 @@ const customerOptions = computed(() => [
   ...customers.value.map(c => ({ value: c.id, label: c.name }))
 ])
 
-/** Load products from server with optional filters */
-async function loadProducts(opts?: { search?: string; category_id?: number; limit?: number }) {
-  productsLoading.value = true
-  try {
-    const params: Record<string, any> = { limit: opts?.limit ?? 30 }
-    if (opts?.search) params.search = opts.search
-    if (opts?.category_id) params.category_id = opts.category_id
-    const res = await fetchProducts(params)
-    displayProducts.value = res.data ?? []
-  } catch (e) {
-    console.error('加载商品失败', e)
-  } finally {
-    productsLoading.value = false
-  }
+function selectProduct(p: any) {
+  const customerPrice = getPriceForProduct(p.id, p.reference_price)
+  addProduct(p, customerPrice)
 }
 
-/** Switch category tab */
-function selectCategory(categoryId: number | null) {
-  selectedCategoryId.value = categoryId
-  searchQuery.value = ''
-  loadProducts({ category_id: categoryId ?? undefined })
-}
-
-function selectProduct(p: Product) {
-  const existing = items.find(i => i.product_id === p.id)
-  if (existing) {
-    existing.quantity++
-    calcLine(items.indexOf(existing))
-  } else {
-    const customerPrice = customerPricesMap.get(p.id)
-    const price = customerPrice ?? p.reference_price ?? 0
-    items.push({
-      product_id: p.id,
-      product_name: p.name,
-      quantity: 1,
-      unit_price: price,
-      cost_price: p.cost_price || 0,
-      line_total: price
-    })
-  }
-}
-
-function increment(idx: number) {
-  items[idx].quantity++
-  calcLine(idx)
-}
-
-function decrement(idx: number) {
-  if (items[idx].quantity <= 1) {
-    items.splice(idx, 1)
-  } else {
-    items[idx].quantity--
-    calcLine(idx)
-  }
-}
-
-function clearCart() {
-  items.splice(0, items.length)
-}
-
-function marginColor(item: { unit_price: number; cost_price: number }): string {
-  if (item.cost_price <= 0) return 'bg-gray-300'
-  if (item.unit_price <= 0 || item.unit_price < item.cost_price) return 'bg-gray-900'
-  const margin = (item.unit_price - item.cost_price) / item.unit_price
-  if (margin >= 0.3) return 'bg-green-500'
-  if (margin >= 0.1) return 'bg-amber-400'
-  return 'bg-red-500'
-}
-
-function marginTip(item: { unit_price: number; cost_price: number; product_name: string }): string {
-  if (item.cost_price <= 0) return '未知进价'
-  if (item.unit_price <= 0) return '💀 无售价！'
-  if (item.unit_price < item.cost_price) return '💀 低于进价！'
-  const margin = ((item.unit_price - item.cost_price) / item.unit_price * 100).toFixed(0)
-  return `毛利 ${margin}%`
-}
-
-async function onCustomerChange(customerId: string | number | null) {
-  customerPricesMap.clear()
-  const version = ++customerChangeVersion  // #12: track this call
-  if (!customerId) {
-    // Switched to retail: reset all cart items to cached default prices
-    for (const item of items) {
-      const defaultPrice = productPricesCache.get(item.product_id) ?? 0
-      item.unit_price = defaultPrice
-      calcLine(items.indexOf(item))
-    }
-    return
-  }
-  try {
-    const { data } = await fetchCustomerPrices(Number(customerId))
-    if (version !== customerChangeVersion) return  // #12: stale response, discard
-    if (data) {
-      for (const cp of data) {
-        customerPricesMap.set(cp.product_id, cp.price)
-      }
-    }
-    // Update ALL cart items: use customer price if available, otherwise cached default
-    for (const item of items) {
-      const cp = customerPricesMap.get(item.product_id)
-      if (cp !== undefined) {
-        item.unit_price = cp
-      } else {
-        item.unit_price = productPricesCache.get(item.product_id) ?? 0
-      }
-      calcLine(items.indexOf(item))
-    }
-  } catch (e) {
-    console.error('加载客户价格失败', e)
-  }
-}
-
-function calcLine(idx: number) {
-  items[idx].line_total = (items[idx].quantity || 0) * (items[idx].unit_price || 0)
-}
-
-const debouncedSearch = useDebounceFn(() => doSearch(), 300)
-
-async function showStock(productId: number) {
-  hoveredProductId.value = productId
-  if (productStocks[productId]) return
+/** Fetch stock for a product (used in handleQuickSale for stock checking) */
+async function fetchStockForProduct(productId: number): Promise<StockEntry[]> {
+  if (productStocks[productId]) return productStocks[productId]
   const res = await fetchStockByProduct(productId)
-  if (res.data) {
-    productStocks[productId] = res.data.map((s: any) => ({
-      warehouse_id: s.warehouse_id,
-      warehouse_name: s.warehouse_name,
-      quantity: s.quantity
-    }))
-  }
+  const stocks: StockEntry[] = (res.data ?? []).map((s: any) => ({
+    warehouse_id: s.warehouse_id,
+    warehouse_name: s.warehouse_name,
+    quantity: s.quantity,
+  }))
+  productStocks[productId] = stocks
+  return stocks
 }
 
-async function doSearch() {
-  const q = searchQuery.value.trim()
-  if (!q) {
-    // Clear search, reload default or current category
-    selectedCategoryId.value = null
-    loadProducts()
-    return
-  }
-  selectedCategoryId.value = null
-  loadProducts({ search: q, limit: 50 })
-}
-
-async function handleQuickSale(paymentMode: 'paid' | 'credit') {
-  if (saving.value) return
+async function handleQuickSale(paymentMode: 'paid' | 'credit'): Promise<boolean> {
+  if (saving.value) return false
   saving.value = true; error.value = ''; success.value = ''
   try {
     const shopId = defaultWarehouseId.value
-    if (!shopId) { error.value = '未配置默认门店仓库'; saving.value = false; return }
+    if (!shopId) { error.value = '未配置默认门店仓库'; saving.value = false; return false }
 
     // Check shop stock for each item
     const insufficient: typeof warehousePopup.items = []
     for (const item of items) {
-      const stocks = productStocks[item.product_id] || await fetchStockByProduct(item.product_id).then(r => (r.data ?? []).map((s: any) => ({ warehouse_id: s.warehouse_id, warehouse_name: s.warehouse_name, quantity: s.quantity })))
-      if (!productStocks[item.product_id] && stocks.length) {
-        productStocks[item.product_id] = stocks as any
-      }
-      const shopStock = stocks.find((s: any) => s.warehouse_id === shopId)?.quantity ?? 0
+      const stocks = await fetchStockForProduct(item.product_id)
+      const shopStock = stocks.find(s => s.warehouse_id === shopId)?.quantity ?? 0
       if (shopStock < item.quantity) {
-        const otherWarehouses = stocks.filter((s: any) => s.warehouse_id !== shopId && s.quantity > 0)
+        const otherWarehouses = stocks.filter(s => s.warehouse_id !== shopId && s.quantity > 0)
         if (otherWarehouses.length === 0) {
           continue
         }
@@ -494,13 +364,15 @@ async function handleQuickSale(paymentMode: 'paid' | 'credit') {
       warehousePopup.error = ''
       warehousePopup.visible = true
       saving.value = false
-      return
+      return false
     }
 
     await submitOrder(shopId, paymentMode)
+    return true
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : '网络错误'
     saving.value = false
+    return false
   }
 }
 
@@ -525,13 +397,14 @@ async function handleCreditConfirm(mode: 'picked_up' | 'delivery') {
     return
   }
 
-  creditPopup.visible = false
-
   try {
     if (mode === 'delivery') {
+      creditPopup.visible = false
       await submitPendingOrder(shopId)
     } else {
-      await handleQuickSale('credit')
+      // handleQuickSale may open warehouse popup; only close credit popup on success
+      const submitted = await handleQuickSale('credit')
+      if (submitted) creditPopup.visible = false
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : '操作失败'
@@ -613,9 +486,9 @@ async function submitOrder(
       error.value = completeRes.error; saving.value = false; return
     }
 
-    items.splice(0, items.length)
+    clearCart()
     // Clear stock cache since quantities changed
-    Object.keys(productStocks).forEach(k => delete productStocks[Number(k)])
+    clearStockCache()
     // Invalidate shared caches
     commonStore.invalidate('products')
     success.value = paymentMode === 'paid' ? '收钱完成！' : '记账完成！'
@@ -657,7 +530,7 @@ async function submitPendingOrder(shopId: number) {
     }
 
     // Don't complete - keep as pending for delivery
-    items.splice(0, items.length)
+    clearCart()
     success.value = '已创建待发货订单！'
     setTimeout(() => router.push('/sales'), 1000)
   } catch (e: unknown) {
@@ -679,19 +552,14 @@ onMounted(async () => {
   // Build frequent products bar from hot data
   if (hotRes.data?.by_quantity) {
     const hotNames = new Set(hotRes.data.by_quantity.map(h => h.product_name))
-    const hotProductRes = await fetchProducts({ limit: 30 })
-    if (hotProductRes.data) {
-      frequentProducts.value = hotProductRes.data.filter(p => hotNames.has(p.name)).slice(0, 8)
-      displayProducts.value = hotProductRes.data.slice(0, 30)
-      for (const p of hotProductRes.data) {
-        productPricesCache.set(p.id, p.reference_price || 0)
-      }
+    await loadProducts({ limit: 30 })
+    if (displayProducts.value.length) {
+      frequentProducts.value = displayProducts.value.filter(p => hotNames.has(p.name)).slice(0, 8)
+      cacheProductPrices(displayProducts.value)
     }
   } else {
     await loadProducts({ limit: 30 })
-    for (const p of displayProducts.value) {
-      productPricesCache.set(p.id, p.reference_price || 0)
-    }
+    cacheProductPrices(displayProducts.value)
   }
 })
 </script>

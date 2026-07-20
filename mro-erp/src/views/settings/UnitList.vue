@@ -80,6 +80,9 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import BasePageHeader from '@/components/BasePageHeader.vue'
 import BaseCard from '@/components/BaseCard.vue'
 import BaseTable from '@/components/BaseTable.vue'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const columns = [
   { key: 'sortHandle', label: '' },
@@ -188,7 +191,7 @@ async function saveSortOrder() {
       )
     )
   } catch (e) {
-    console.error('保存排序失败', e)
+    toast.error('保存排序失败')
     fetchData() // Revert on failure
   } finally {
     savingSortOrder.value = false

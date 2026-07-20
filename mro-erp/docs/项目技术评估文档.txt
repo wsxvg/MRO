@@ -1,0 +1,899 @@
+# MRO 进销存系统 — 技术评估文档
+
+> **项目名称**: 汇友进销存（MRO ERP）
+> **版本**: 1.0.0
+> **技术栈**: Vue 3 + TypeScript + Supabase BaaS + Tailwind CSS + Vite
+> **部署方式**: GitHub Pages (Web) + Tauri (桌面端) + PWA (移动端)
+> **文档生成日期**: 2026-06-20
+> **索引统计**: 94 文件 | 1,348 代码节点 | 4,323 依赖边
+
+---
+
+## 目录
+
+1. [项目概述](#1-项目概述)
+2. [技术架构](#2-技术架构)
+3. [数据库设计](#3-数据库设计)
+4. [前端架构](#4-前端架构)
+5. [API 数据层](#5-api-数据层)
+6. [核心业务流程](#6-核心业务流程)
+7. [UI 组件体系](#7-ui-组件体系)
+8. [数据可视化仪表盘](#8-数据可视化仪表盘)
+9. [部署与 CI/CD](#9-部署与-cicd)
+10. [安全设计](#10-安全设计)
+11. [性能优化策略](#11-性能优化策略)
+12. [项目亮点](#12-项目亮点)
+13. [改进空间](#13-改进空间)
+
+---
+
+## 1. 项目概述
+
+### 1.1 业务定位
+
+本系统面向 **2人规模的工业品贸易小公司**，提供进销存全流程管理，覆盖：
+- 商品管理（分类、规格、单位、价格体系）
+- 库存管理（多仓库、库存流水、调拨、预警）
+- 销售管理（标准销售单、快速收银、退货）
+- 客户管理（专属定价、对账单）
+- 报表分析（销售趋势、利润、库存周转、滞销预警、异常检测）
+
+### 1.2 核心设计理念
+
+| 设计维度 | 选择 | 理由 |
+|---------|------|------|
+| 架构模式 | 纯前端 + Supabase BaaS | 2人团队无需自建后端，Supabase 提供数据库+认证+实时推送 |
+| 部署策略 | GitHub Pages + PWA + Tauri | 零运维成本，三端覆盖（Web/移动/桌面） |
+| 状态管理 | Pinia + Vue Composables | 轻量级，适合中小型应用 |
+| UI 框架 | Tailwind CSS + 自定义组件 | 高度定制化，统一设计语言 |
+
+---
+
+## 2. 技术架构
+
+### 2.1 整体架构图
+
+```
+┌──────────────────────────────────────────────────────┐
+│                    用户界面层                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐           │
+│  │ Web App  │  │ PWA 离线 │  │ Tauri    │           │
+│  │ (SPA)    │  │ (移动端) │  │ (桌面端) │           │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘           │
+│       └──────────────┼──────────────┘                 │
+├──────────────────────┼───────────────────────────────┤
+│                  前端应用层                            │
+│  ┌──────────────────────────────────────────────┐    │
+│  │ Vue 3 + TypeScript + Vue Router + Pinia      │    │
+│  └──────────────────────────────────────────────┘    │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────────┐    │
+│  │ Views    │ │Components│ │ Composables      │    │
+│  │ (页面)   │ │ (组件)   │ │ (组合式函数)     │    │
+│  └──────────┘ └──────────┘ └──────────────────┘    │
+├──────────────────────────────────────────────────────┤
+│                  API 数据访问层                        │
+│  ┌──────────────────────────────────────────────┐    │
+│  │ src/api/ — Supabase 客户端封装               │    │
+│  │ products | customers | orders | warehouses   │    │
+│  │ reports  | suppliers | units  | stockTrans.  │    │
+│  └──────────────────────────────────────────────┘    │
+├──────────────────────────────────────────────────────┤
+│               Supabase BaaS 层                       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────────┐    │
+│  │ Auth     │ │ Database │ │ Realtime         │    │
+│  │ (认证)   │ │ (PGSQL)  │ │ (实时推送)       │    │
+│  └──────────┘ └──────────┘ └──────────────────┘    │
+└──────────────────────────────────────────────────────┘
+```
+
+### 2.2 技术栈明细
+
+| 类别 | 技术 | 版本 | 用途 |
+|------|------|------|------|
+| **前端框架** | Vue 3 | ^3.4.0 | 响应式 UI 框架 |
+| **语言** | TypeScript | ~5.5.0 | 类型安全 |
+| **构建工具** | Vite | ^5.4.0 | 开发服务器 + 生产构建 |
+| **路由** | Vue Router | ^4.4.0 | SPA 路由管理 |
+| **状态管理** | Pinia | ^2.2.0 | 全局状态（认证） |
+| **CSS 框架** | Tailwind CSS | ^3.4.4 | 原子化样式 |
+| **图标** | Remix Icon | ^4.9.1 | 1000+ 图标库 |
+| **图表** | ECharts | ^6.1.0 | 数据可视化 |
+| **动画** | GSAP | ^3.15.0 | 专业级动画引擎 |
+| **电子表格** | xlsx-js-style | ^1.2.0 | Excel 导入导出 |
+| **BaaS** | Supabase | ^2.106.1 | 后端即服务 |
+| **桌面端** | Tauri | ^2.11.0 | 跨平台桌面应用 |
+| **PWA** | vite-plugin-pwa | ^0.20.0 | 离线访问 + 安装到桌面 |
+
+### 2.3 项目文件结构
+
+```
+mro-erp/
+├── src/
+│   ├── api/                    # 数据访问层 (10 个文件)
+│   │   ├── index.ts            # 统一导出
+│   │   ├── products.ts         # 商品/分类 CRUD
+│   │   ├── customers.ts        # 客户/专属价格
+│   │   ├── orders.ts           # 销售单/退货/收款
+│   │   ├── warehouses.ts       # 仓库/库存
+│   │   ├── reports.ts          # 报表统计
+│   │   ├── suppliers.ts        # 供应商管理
+│   │   ├── units.ts            # 计量单位
+│   │   ├── stockTransactions.ts# 库存流水
+│   │   └── purchaseOrders.ts   # 采购单
+│   ├── components/             # 通用 UI 组件 (13 个)
+│   │   ├── BasePageHeader.vue  # 页面标题栏
+│   │   ├── BaseTable.vue       # 通用表格（排序/分页/插槽）
+│   │   ├── BaseCard.vue        # 卡片容器
+│   │   ├── BaseModal.vue       # 模态弹窗
+│   │   ├── BasePagination.vue  # 分页组件
+│   │   ├── ConfirmDialog.vue   # 确认对话框
+│   │   ├── FilterBar.vue       # 搜索+筛选栏
+│   │   ├── PasswordDialog.vue  # 密码修改弹窗
+│   │   ├── SearchableSelect.vue# 可搜索下拉选择
+│   │   ├── StatCard.vue        # 统计数字卡片
+│   │   ├── StatusBadge.vue     # 状态标签
+│   │   ├── TableSkeleton.vue   # 表格骨架屏
+│   │   └── ToastNotification.vue # 全局消息提示
+│   ├── composables/            # 组合式函数 (9 个)
+│   │   ├── useToast.ts         # Toast 通知系统（模块级单例）
+│   │   ├── useRealtime.ts      # Supabase Realtime 订阅
+│   │   ├── useGsap.ts          # GSAP 动画封装
+│   │   ├── useDebounce.ts      # 防抖工具
+│   │   ├── useCart.ts          # 购物车逻辑
+│   │   ├── useCustomerPricing.ts # 客户专属价格
+│   │   ├── useProductSearch.ts # 商品搜索
+│   │   ├── useStockLookup.ts   # 库存查询
+│   │   └── useUpdateChecker.ts # PWA 更新检测
+│   ├── views/                  # 页面视图
+│   │   ├── Layout.vue          # 主布局（侧边栏+顶栏+内容区）
+│   │   ├── Login.vue           # 登录页（含3D视差动画）
+│   │   ├── Dashboard.vue       # 仪表盘（KPI+图表+预警）
+│   │   ├── products/           # 商品管理 (5 页面)
+│   │   ├── customers/          # 客户管理 (4 页面)
+│   │   ├── sales/              # 销售管理 (7 页面)
+│   │   ├── warehouses/         # 仓库管理 (5 页面)
+│   │   ├── reports/            # 报表中心 (4 页面)
+│   │   └── settings/           # 系统设置 (4 页面)
+│   ├── stores/
+│   │   └── auth.ts             # 认证状态管理
+│   ├── types/
+│   │   └── index.ts            # 全局 TypeScript 类型定义 (291 行)
+│   ├── lib/
+│   │   └── supabase.ts         # Supabase 客户端初始化
+│   ├── router/
+│   │   └── index.ts            # 路由配置 + 鉴权守卫 (222 行)
+│   └── main.ts                 # 应用入口 + 全局错误处理
+├── src-tauri/                  # Tauri 桌面端配置
+├── scripts/                    # 辅助脚本 (7 个)
+├── .github/workflows/          # CI/CD
+├── supabase-schema.sql         # 完整数据库建表 SQL (392 行)
+├── package.json
+├── vite.config.ts
+├── tailwind.config.js
+└── tsconfig.json
+```
+
+---
+
+## 3. 数据库设计
+
+### 3.1 数据模型概览
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  categories │     │  warehouses │     │  suppliers  │
+│  (分类)     │     │  (仓库)     │     │  (供应商)   │
+└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
+       │                   │                   │
+       ▼                   ▼                   ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  products   │────▶│   stocks    │◀────│ stock_lots  │
+│  (商品)     │     │  (库存)     │     │  (批次)     │
+└──────┬──────┘     └─────────────┘     └─────────────┘
+       │
+       ▼
+┌─────────────┐     ┌─────────────┐
+│  customers  │────▶│customer_    │
+│  (客户)     │     │  prices     │
+└──────┬──────┘     │(专属定价)   │
+       │            └─────────────┘
+       ▼
+┌──────────────────────────────────────────┐
+│           销售业务流                       │
+│  sales_orders ──▶ sales_order_items      │
+│       │              │                   │
+│       ▼              ▼                   │
+│  payment_records  stock_transactions     │
+│       │                                   │
+│       ▼                                   │
+│  sales_return_orders ──▶ sales_return_items │
+└──────────────────────────────────────────┘
+```
+
+### 3.2 数据表清单
+
+| 表名 | 说明 | 核心字段 |
+|------|------|---------|
+| `categories` | 商品分类 | id, name, sort_order |
+| `warehouses` | 仓库 | id, name, location, is_default |
+| `products` | 商品 | id, name, category_id, unit, reference_price, cost_price, min_stock, is_active |
+| `customers` | 客户 | id, name, type, contact_person, phone, address, credit_limit |
+| `customer_prices` | 客户专属定价 | customer_id + product_id (复合主键), price |
+| `stocks` | 库存 | warehouse_id + product_id (唯一约束), quantity |
+| `stock_lots` | 批次库存 | product_id, warehouse_id, supplier_id, quantity, unit_cost, is_estimated |
+| `stock_transactions` | 库存流水 | warehouse_id, product_id, type, quantity, unit_cost, ref_type, ref_id |
+| `sales_orders` | 销售单 | order_no (自动生成), customer_id, warehouse_id, status, total_amount, paid_amount |
+| `sales_order_items` | 销售明细 | sales_order_id, product_id, quantity, unit_price, cost_price, line_total (生成列) |
+| `payment_records` | 收款记录 | sales_order_id, amount, payment_method, type |
+| `sales_return_orders` | 退货单 | order_no, customer_id, warehouse_id, status, total_amount |
+| `sales_return_items` | 退货明细 | return_order_id, product_id, quantity, unit_price, line_total |
+| `stock_transfers` | 库存调拨 | order_no, from_warehouse_id, to_warehouse_id, status |
+| `stock_transfer_items` | 调拨明细 | transfer_id, product_id, quantity |
+
+### 3.3 数据库函数 (RPC)
+
+| 函数名 | 用途 | 参数 |
+|--------|------|------|
+| `generate_order_no(prefix)` | 自动生成订单号 (格式: `{prefix}-{YYYYMMDD}-{0001}`) | prefix: 'SO'/'SR'/'TF' |
+| `update_updated_at()` | 更新时间戳触发器 | - |
+| `set_order_no()` | INSERT 前自动生成订单号 | - |
+| `complete_sales_order(p_order_id)` | 完成销售单：扣减库存 + 记录流水 + 更新应收 | p_order_id |
+| `complete_sales_order_mw(p_order_id)` | 多仓库模式完成销售单 | p_order_id |
+| `complete_sales_return(p_return_id)` | 完成退货：恢复库存 + 记录流水 | p_return_id |
+| `reverse_sales_order(p_order_id)` | 逆向操作：恢复库存 + 恢复应收 | p_order_id |
+| `get_monthly_sales_trend(p_start_date)` | 月度销售趋势统计 | p_start_date |
+| `get_stock_transactions_by_date(...)` | 按日期汇总库存流水 | 多参数可选 |
+| `stock_in_with_lot(...)` | 批次入库 | product_id, warehouse_id, quantity, unit_cost 等 |
+| `update_lot_cost(p_lot_id, p_new_cost)` | 更新批次成本 | p_lot_id, p_new_cost |
+| `recalc_product_cost(p_product_id)` | 重新计算商品成本 | p_product_id |
+
+### 3.4 订单号生成规则
+
+```
+销售单: SO-20260620-0001
+退货单: SR-20260620-0001
+调拨单: TF-20260620-0001
+
+规则：前缀-日期-4位序号（当天自增）
+```
+
+### 3.5 RLS 安全策略
+
+所有 14 张表均启用了 Row Level Security，策略为 **全员可读写**（适合 2 人小团队）：
+```sql
+CREATE POLICY "全员可读写" ON <table> FOR ALL USING (true) WITH CHECK (true);
+```
+
+---
+
+## 4. 前端架构
+
+### 4.1 路由设计
+
+路由采用嵌套结构，所有业务页面包裹在 `Layout.vue` 布局中：
+
+```
+/login                          → Login.vue（无需鉴权）
+/                               → 重定向到 /dashboard
+
+(Layout 布局内，需要鉴权)
+/dashboard                      → 仪表盘
+
+/products                       → 商品列表
+/products/new                   → 新增商品
+/products/:id                   → 编辑商品
+/products/:id/stock             → 商品库存分布
+/products/import                → 批量导入
+
+/stock/in                       → 进货入库列表
+/stock/in/new                   → 新建入库单
+
+/customers                      → 客户列表
+/customers/new                  → 新增客户
+/customers/:id                  → 编辑客户
+/customers/:id/pricing          → 客户专属价格
+/customers/import               → 批量导入
+
+/sales                          → 销售单列表
+/sales/quick                    → 快速收银（POS 模式）
+/sales/new                      → 新增销售单
+/sales/:id                      → 销售单详情
+
+/sales-returns                  → 退货单列表
+/sales-returns/new              → 新增退货单
+/sales-returns/:id              → 退货单详情
+
+/reports/sales                  → 销售报表
+/reports/profit                 → 利润报表
+/reports/inventory              → 库存报表
+/reports/customer-statement     → 客户对账单
+
+/settings/warehouses            → 仓库管理
+/settings/warehouses/:id/stock  → 仓库库存明细
+/settings/warehouses/transactions → 库存流水
+/settings/warehouses/lots       → 批次历史
+/settings/suppliers             → 供应商管理
+/settings/data                  → 数据导入导出
+/settings/categories            → 分类管理
+/settings/units                 → 单位管理
+```
+
+### 4.2 鉴权流程
+
+```
+用户输入 username + password
+    ↓
+stores/auth.ts → login(username, password)
+    ↓
+校验 username === DEFAULT_USERNAME ('huiyou')
+    ↓
+supabase.auth.signInWithPassword({ email, password })
+    ↓
+成功 → loggedIn = true → router.push('/dashboard')
+失败 → 返回中文错误提示
+    ↓
+路由守卫 (router/index.ts):
+  beforeEach → 检查 supabase.auth.getSession()
+  → 无 session 且非 /login → 重定向 /login
+  → 有 session → 放行
+```
+
+### 4.3 布局系统 (Layout.vue)
+
+- **桌面端**: 可折叠侧边栏 (4rem / 14rem) + 顶部导航栏 + 内容区
+- **移动端**: 汉堡菜单 + 滑出式侧边栏
+- **页面切换动画**: GSAP 驱动的淡入淡出 + 位移动画
+- **Keep-alive**: 最多缓存 10 个页面组件
+
+### 4.4 全局错误处理
+
+```typescript
+// main.ts
+app.config.errorHandler = (err, instance, info) => {
+  const name = getComponentName(instance)
+  const msg = getErrorMessage(err)
+  console.error(`[全局错误] ${name}:`, err, info)
+  toast.error(`操作遇到问题: ${msg}`)
+}
+```
+
+---
+
+## 5. API 数据层
+
+### 5.1 统一返回格式
+
+```typescript
+// 单条记录
+interface ApiResult<T> {
+  data: T | null
+  error: string | null
+}
+
+// 列表
+interface ListResponse<T> {
+  data: T[]
+  count: number
+  error: string | null
+}
+```
+
+### 5.2 API 函数清单
+
+#### products.ts — 商品/分类管理 (149 行)
+
+| 函数 | 说明 |
+|------|------|
+| `fetchCategories()` | 获取所有分类（按 sort_order 排序） |
+| `createCategory(input)` | 创建分类（含查重） |
+| `updateCategory(id, input)` | 更新分类（含查重） |
+| `deleteCategory(id)` | 删除分类 |
+| `fetchProducts(params?)` | 分页/搜索/筛选商品列表 |
+| `fetchProduct(id)` | 获取单个商品 |
+| `createProduct(input)` | 创建商品 |
+| `updateProduct(id, input)` | 更新商品 |
+| `deleteProduct(id)` | 删除商品（含外键冲突处理） |
+| `batchDisableProducts(ids)` | 批量停用商品 |
+
+#### customers.ts — 客户/专属价格 (107 行)
+
+| 函数 | 说明 |
+|------|------|
+| `fetchCustomers(params?)` | 分页/搜索/筛选客户列表 |
+| `createCustomer(input)` | 创建客户 |
+| `updateCustomer(id, input)` | 更新客户 |
+| `deleteCustomer(id)` | 删除客户 |
+| `batchDeleteCustomers(ids)` | 批量删除 |
+| `fetchCustomerPrices(customerId)` | 获取客户专属价格 |
+| `upsertCustomerPrices(prices[])` | 批量更新专属价格（upsert） |
+| `deleteCustomerPrice(customerId, productId)` | 删除专属价格 |
+
+#### orders.ts — 销售/退货/收款 (357 行)
+
+| 函数 | 说明 |
+|------|------|
+| `fetchSalesOrders(params?)` | 分页/筛选销售单列表 |
+| `fetchSalesOrder(id)` | 获取单个销售单 |
+| `createSalesOrder(input)` | 创建销售单（INSERT） |
+| `updateSalesOrder(id, input)` | 更新销售单 |
+| `completeSalesOrder(id)` | 完成销售单（RPC: 扣减库存+更新应收） |
+| `completeSalesOrderWithWarehouses(orderId, overrides)` | 多仓库模式完成销售单 |
+| `reverseSalesOrder(id)` | 逆向操作（RPC: 恢复库存） |
+| `deleteSalesOrder(id)` | 删除销售单及关联记录 |
+| `fetchSalesOrderItems(orderId)` | 获取订单明细 |
+| `saveSalesOrderItems(orderId, items)` | 保存订单明细（先插入后删除旧数据） |
+| `fetchSalesReturns(params?)` | 退货单列表 |
+| `createSalesReturn(input)` | 创建退货单 |
+| `completeSalesReturn(id)` | 完成退货单（RPC: 恢复库存） |
+| `saveSalesReturnItems(returnId, items)` | 保存退货明细 |
+| `createPayment(input)` | 创建收款记录 |
+| `fetchPaymentRecords(orderId)` | 获取收款记录 |
+
+#### warehouses.ts — 仓库/库存 (119 行)
+
+| 函数 | 说明 |
+|------|------|
+| `fetchWarehouses()` | 获取所有仓库 |
+| `fetchWarehouse(id)` | 获取单个仓库 |
+| `createWarehouse(input)` | 创建仓库 |
+| `updateWarehouse(id, input)` | 更新仓库 |
+| `deleteWarehouse(id)` | 删除仓库 |
+| `fetchDefaultWarehouse()` | 获取默认仓库 |
+| `fetchStocks(params?)` | 分页/筛选库存列表（关联商品+仓库） |
+| `fetchStockByProduct(productId)` | 获取商品在各仓库的库存 |
+
+#### reports.ts — 报表统计 (622 行)
+
+| 函数 | 说明 |
+|------|------|
+| `fetchStockReport(params?)` | 库存报表（含批次成本估值） |
+| `fetchSalesSummary(params?)` | 按日汇总销售（客户端分组） |
+| `fetchDashboardKPIs(params?)` | 仪表盘 KPI（Promise.all 并行查询） |
+| `fetchMonthlyTrend()` | 月度销售趋势（RPC + 补零） |
+| `fetchInventoryByCategory()` | 库存分类分布 |
+| `fetchInventoryTurnoverRate(params?)` | 库存周转率（COGS / 平均库存） |
+| `fetchProfitReport(params?)` | 利润报表（单查询，无 N+1） |
+| `fetchStockTransactionsByDate(params?)` | 按日期汇总库存流水（RPC） |
+| `fetchRecentOrders(limit, params?)` | 最近订单 |
+| `fetchHotProducts(params?)` | 热销商品 TOP 10（按数量/销售额） |
+| `fetchSlowProducts()` | 滞销商品（60天+ 无销售） |
+| `fetchAnomalies()` | 异常检测（进价异常/负库存/低库存/滞销） |
+
+### 5.3 Supabase 查询模式
+
+项目广泛使用 PostgREST 的 **关联查询（Embed）** 模式，避免 N+1 查询：
+
+```typescript
+// 单次查询获取商品+分类+库存
+const { data } = await supabase
+  .from('products')
+  .select('*, categories!left(name), stocks!left(quantity)', { count: 'exact' })
+
+// 在 JS 端聚合库存
+const mapped = data.map(p => ({
+  ...p,
+  category_name: p.categories?.name ?? null,
+  stock_quantity: (p.stocks ?? []).reduce((sum, s) => sum + s.quantity, 0),
+}))
+```
+
+---
+
+## 6. 核心业务流程
+
+### 6.1 快速收银流程 (SaleQuick.vue)
+
+```
+选择商品 → items[] (购物车)
+    ↓
+调整数量/单价 → 自动计算 line_total
+    ↓
+点击"收钱完成" →
+  createSalesOrder({ customer_id, warehouse_id, status:'draft', total_amount })
+    ↓
+成功 → saveSalesOrderItems(order_id, items)
+    ↓
+成功 → completeSalesOrder(order_id)  // RPC: 扣库存 + 更新应收
+    ↓
+成功 → 可选: createPayment()  // 记录收款
+    ↓
+完成 → 清空购物车，Toast 提示
+```
+
+**特色功能**:
+- 利润率实时显示（绿/黄/红/💀 标记）
+- 低于进价警告（💀 图标）
+- 支持"收钱完成"和"记账"两种模式
+- 搜索式商品选择（支持名称/规格/条码搜索）
+
+### 6.2 标准销售单流程 (SaleForm.vue)
+
+```
+填写表单（客户、仓库、备注、是否需要发货）
+    ↓
+添加商品明细（每行: 商品、数量、单价）
+    ↓
+保存草稿 → createSalesOrder(status:'draft') + saveSalesOrderItems()
+    ↓
+完成订单 → completeSalesOrder(id)  // 调用 RPC，不可逆
+    ↓
+可追加收款 → createPayment({ order_id, amount, method })
+    ↓
+支持逆向操作 → reverseSalesOrder(id)  // 恢复库存
+```
+
+### 6.3 退货流程 (SaleReturnForm.vue)
+
+```
+选择原始销售单 → 加载原单明细
+    ↓
+选择退货商品/数量
+    ↓
+保存 → createSalesReturn()
+    ↓
+完成 → completeSalesReturn(id)  // RPC: 恢复库存
+```
+
+### 6.4 库存调拨流程
+
+```
+选择源仓库 + 目标仓库
+    ↓
+添加调拨商品/数量
+    ↓
+完成 → RPC 扣减源仓库库存 + 增加目标仓库库存
+```
+
+---
+
+## 7. UI 组件体系
+
+### 7.1 设计系统
+
+**配色方案**: 深灰色主题（primary-900: #111827）
+**字体**: Inter + 系统字体栈
+**圆角**: xl (0.75rem) 统一使用
+**阴影**: 微妙阴影 + backdrop-blur 毛玻璃效果
+
+### 7.2 核心组件
+
+| 组件 | 用途 | 关键特性 |
+|------|------|---------|
+| `BaseTable` | 通用数据表格 | 列定义、排序、空状态、响应式 |
+| `BaseModal` | 模态弹窗 | v-model 控制、标题、插槽 |
+| `BasePagination` | 分页 | 上一页/下一页、页码显示 |
+| `FilterBar` | 搜索+筛选 | 防抖搜索、筛选器配置 |
+| `SearchableSelect` | 可搜索下拉 | 搜索过滤、多选支持 |
+| `ConfirmDialog` | 确认弹窗 | 标题、消息、确认/取消回调 |
+| `ToastNotification` | 全局通知 | 模块级单例、自动消失 |
+| `StatCard` | 统计卡片 | 标签、数值、颜色 |
+| `StatusBadge` | 状态标签 | 草稿/已完成/已取消 |
+| `TableSkeleton` | 骨架屏 | 加载状态占位 |
+| `PasswordDialog` | 密码修改 | 安全问题验证 |
+
+### 7.3 CSS 工具类
+
+```css
+/* 按钮系统 */
+.btn           /* 基础按钮 */
+.btn-primary   /* 主操作按钮（深灰底白字） */
+.btn-secondary /* 次操作按钮（白底灰字+边框） */
+.btn-danger    /* 危险操作按钮（红色） */
+.btn-sm / .btn-lg  /* 尺寸变体 */
+.btn-icon      /* 图标按钮 */
+
+/* 表面系统 */
+.surface       /* 半透明背景 + 模糊 */
+.surface-strong /* 更强的表面效果 */
+
+/* 间距 */
+.page-padding  /* 页面统一内边距 p-6 */
+```
+
+---
+
+## 8. 数据可视化仪表盘
+
+### 8.1 仪表盘模块
+
+Dashboard.vue 是系统最复杂的页面（866 行），包含以下模块：
+
+| 模块 | 数据来源 | 可视化 |
+|------|---------|--------|
+| KPI 卡片 (4个) | fetchDashboardKPIs | 数字 + 趋势箭头 + 迷你折线图 |
+| 低库存预警 | fetchStockReport | 商品列表 + 库存/安全库存对比 |
+| 销售趋势 | fetchSalesSummary | ECharts 折线图（渐变填充） |
+| 最近订单 | fetchRecentOrders | 订单列表 + 状态标签 |
+| 待发货 | fetchSalesOrders (pending) | 待处理订单列表 |
+| 待到货 | fetchPurchaseOrders (pending) | 待入库采购列表 |
+| 未收款客户 | fetchSalesOrders (completed) | 客户欠款汇总 |
+| 热销 TOP 10 | fetchHotProducts | 双排行（数量+销售额） |
+| 库存分类分布 | fetchInventoryByCategory | ECharts 环形图 |
+| 异常预警 | fetchAnomalies | 4 类异常检测 |
+| 滞销商品 | fetchSlowProducts | 60天+ 无销售商品表 |
+
+### 8.2 动画系统
+
+使用 GSAP 实现专业级动画：
+
+```typescript
+// 数字滚动动画（从 0 到目标值）
+useCountUp(monthlySales, salesValueRef, { prefix: '¥', duration: 1.5 })
+
+// 交错入场动画（KPI 卡片依次出现）
+useStaggerIn(kpiContainer, '.kpi-card', { y: 30, stagger: 0.08 })
+
+// 页面切换动画（Layout.vue）
+gsap.to(el, { opacity: 0, y: -8, duration: 0.2 })
+```
+
+### 8.3 实时更新
+
+仪表盘监听 Supabase Realtime 事件，销售单或库存变化时自动刷新：
+
+```typescript
+useRealtimeTables(['sales_orders', 'stocks'], () => {
+  debouncedReload()  // 1秒防抖
+})
+```
+
+---
+
+## 9. 部署与 CI/CD
+
+### 9.1 GitHub Actions 自动部署
+
+```yaml
+# .github/workflows/deploy-web.yml
+触发: push to main
+步骤:
+  1. Checkout 代码
+  2. Setup Node.js 20
+  3. npm ci 安装依赖
+  4. npm run build (vue-tsc 类型检查 + vite build)
+  5. Upload Pages artifact
+  6. Deploy to GitHub Pages
+```
+
+**访问地址**: `https://wsxvg.github.io/MRO/`
+
+### 9.2 Tauri 桌面端
+
+```json
+{
+  "productName": "汇友进销存",
+  "identifier": "com.mroerp.app",
+  "bundle": {
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "windows": { "nsis": { "installMode": "currentUser" } }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://wsxvg.github.io/MRO/latest.json"],
+      "windows": { "installMode": "passive" }
+    }
+  }
+}
+```
+
+**特性**:
+- NSIS 安装包（perUser 安装）
+- 自动更新（通过 GitHub Releases）
+- 支持 Windows/macOS/Linux
+
+### 9.3 PWA 配置
+
+```typescript
+// vite.config.ts
+VitePWA({
+  registerType: 'autoUpdate',
+  manifest: {
+    name: '汇友进销存',
+    short_name: '汇友',
+    display: 'standalone',
+    icons: [/* SVG + PNG 多尺寸 */]
+  },
+  workbox: {
+    globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+    runtimeCaching: [
+      { urlPattern: /googleapis/, handler: 'CacheFirst' },
+      { urlPattern: /jsdelivr/, handler: 'CacheFirst' }
+    ]
+  }
+})
+```
+
+### 9.4 数据备份
+
+```yaml
+# .github/workflows/backup.yml
+频率: 每周日凌晨 3 点 (UTC)
+方式: GitHub Actions 自动备份到私有仓库
+所需 Secrets:
+  - SUPABASE_ACCESS_TOKEN
+  - SUPABASE_DB_URL
+```
+
+---
+
+## 10. 安全设计
+
+### 10.1 认证机制
+
+- **Supabase Auth**: 基于邮箱+密码的标准认证
+- **用户名映射**: 前端将 `username` 映射到固定邮箱 `huiyou@mro-dev.xyz`
+- **Session 管理**: 自动刷新 token + 持久化 session
+- **路由守卫**: 检查 session 状态，未登录重定向到登录页
+
+### 10.2 安全措施
+
+| 措施 | 实现 |
+|------|------|
+| 密码修改 | 需回答安全问题验证身份 |
+| RLS 策略 | 所有表启用 Row Level Security |
+| 环境变量 | `.env` 文件已加入 `.gitignore` |
+| Service Key | 仅脚本使用，前端不打包 |
+| CSP | Tauri 配置中设为 null（开发阶段） |
+
+### 10.3 已知安全限制
+
+- RLS 设为全员可读写（适合 2 人团队，不适合多用户）
+- 安全问题答案硬编码在前端代码中
+- 无频率限制或暴力破解防护
+
+---
+
+## 11. 性能优化策略
+
+### 11.1 构建优化
+
+**Vite 代码分割**:
+```typescript
+manualChunks(id) {
+  if (id.includes('@supabase/supabase-js')) return 'supabase'
+  if (id.includes('echarts/core')) return 'echarts-core'
+  if (id.includes('echarts/charts')) return 'echarts-charts'
+  if (id.includes('echarts/components')) return 'echarts-components'
+  if (id.includes('echarts/renderers')) return 'echarts-renderers'
+  if (id.includes('xlsx')) return 'xlsx'
+  if (id.includes('vue-router')) return 'vue-router'
+  if (id.includes('pinia')) return 'pinia'
+  if (id.includes('vue')) return 'vue'
+}
+```
+
+**ECharts 按需引入**: 从 1.1MB 优化到 543KB
+
+### 11.2 数据查询优化
+
+- **PostgREST Embed**: 单次查询获取关联数据，避免 N+1
+- **Promise.all 并行查询**: Dashboard 同时发起 8+ 个并行请求
+- **客户端聚合**: 销售汇总按日期分组在 JS 端完成
+- **防抖搜索**: 商品搜索输入 300ms 防抖
+
+### 11.3 渲染优化
+
+- **Keep-alive**: 最多缓存 10 个页面组件
+- **骨架屏**: 加载状态显示占位动画
+- **懒加载**: 所有路由组件使用动态 import
+- **图片优化**: sharp 用于 PWA 图标生成
+
+### 11.4 实时更新优化
+
+- **Supabase Realtime**: 仅监听必要表（sales_orders, stocks）
+- **防抖刷新**: 1 秒防抖避免频繁请求
+- **按需订阅**: 组件卸载时自动取消订阅
+
+---
+
+## 12. 项目亮点
+
+### 12.1 架构亮点
+
+1. **零后端架构**: 纯前端 + Supabase BaaS，无需服务器运维
+2. **三端覆盖**: Web (GitHub Pages) + PWA (移动端) + Tauri (桌面端)
+3. **自动更新**: Tauri 桌面端支持静默自动更新
+4. **实时同步**: Supabase Realtime 实现多端数据同步
+
+### 12.2 功能亮点
+
+1. **快速收银模式**: POS 风格界面，适合门店场景
+2. **智能异常检测**: 进价异常、负库存、低库存、滞销预警
+3. **批次成本管理**: 支持先进先出和加权平均成本
+4. **客户专属定价**: 每个客户可设置不同商品价格
+5. **多仓库支持**: 库存调拨 + 多仓库出货
+
+### 12.3 技术亮点
+
+1. **GSAP 动画系统**: 数字滚动、交错入场、页面切换
+2. **ECharts 按需引入**: 构建体积优化 50%+
+3. **模块级单例 Toast**: 无需全局状态管理
+4. **TypeScript 类型安全**: 完整的类型定义 + Supabase Database 类型映射
+5. **全局错误处理**: 捕获所有未处理异常并显示友好提示
+
+### 12.4 代码质量
+
+- **94 个源文件**，**1,348 个代码节点**，**4,323 条依赖边**
+- **统一的 API 返回格式**: ApiResult<T> / ListResponse<T>
+- **完整的类型定义**: 291 行类型定义文件
+- **清晰的分层架构**: Views → Components/Composables → API → Supabase
+
+---
+
+## 13. 改进空间
+
+### 13.1 架构层面
+
+| 改进项 | 说明 | 优先级 |
+|--------|------|--------|
+| RLS 策略细化 | 当前全员可读写，建议按用户角色限制 | 中 |
+| 测试覆盖 | 无单元测试/集成测试 | 高 |
+| README 文档 | 缺少项目说明文档 | 高 |
+| 错误边界 | 缺少 ErrorBoundary 组件 | 中 |
+
+### 13.2 功能层面
+
+| 改进项 | 说明 | 优先级 |
+|--------|------|--------|
+| 多用户支持 | 当前仅支持单用户 | 低 |
+| 权限管理 | 无角色权限控制 | 低 |
+| 打印功能 | 已有报价单/送货单打印，可扩展 | 低 |
+| 数据导出 | 部分报表支持导出，可统一 | 中 |
+
+### 13.3 技术层面
+
+| 改进项 | 说明 | 优先级 |
+|--------|------|--------|
+| 单元测试 | 添加 Vitest + Vue Test Utils | 高 |
+| E2E 测试 | 添加 Playwright 测试 | 中 |
+| 性能监控 | 添加 Web Vitals 监控 | 低 |
+| 国际化 | 当前仅支持中文 | 低 |
+
+---
+
+## 附录 A: 环境变量
+
+```
+VITE_SUPABASE_URL=        # Supabase 项目 URL
+VITE_SUPABASE_ANON_KEY=   # Supabase 匿名 Key（前端使用）
+```
+
+## 附录 B: 构建命令
+
+```bash
+npm run dev       # 开发服务器 (http://localhost:5173)
+npm run build     # 生产构建（vue-tsc 类型检查 + vite build）
+npm run preview   # 预览构建产物
+```
+
+## 附录 C: CodeGraph 索引统计
+
+```
+项目: C:\项目\MRO\mro-erp
+文件: 94
+节点: 1,348
+边: 4,323
+数据库大小: 3.27 MB
+
+节点类型分布:
+  constant   470  (34.9%)
+  function   361  (26.8%)
+  import     317  (23.5%)
+  file        92  ( 6.8%)
+  component   48  ( 3.6%)
+  interface   45  ( 3.3%)
+  variable    10  ( 0.7%)
+  type_alias   5  ( 0.4%)
+
+语言分布:
+  vue         48  (51.1%)
+  typescript  31  (33.0%)
+  javascript  10  (10.6%)
+  rust         3  ( 3.2%)
+  yaml         2  ( 2.1%)
+```
+
+---
+
+> 本文档由 CodeGraph 索引 + 代码分析自动生成，供项目技术评估使用。

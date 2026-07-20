@@ -124,3 +124,4 @@ export function useProgressAnimate(element: Ref<HTMLElement | null>, targetWidth
 }
 
 export { gsap }
+

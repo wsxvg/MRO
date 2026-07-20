@@ -172,6 +172,9 @@ import FilterBar from '@/components/FilterBar.vue'
 import BasePagination from '@/components/BasePagination.vue'
 import TableSkeleton from '@/components/TableSkeleton.vue'
 import CustomerForm from '@/views/customers/CustomerForm.vue'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const columns = [
   { key: 'name', label: '名称' },
@@ -297,7 +300,7 @@ async function loadDebts() {
     }
     debtMap.value = debts
   } catch (e) {
-    console.error('加载欠款数据失败', e)
+    toast.error('加载欠款数据失败')
   }
 }
 
