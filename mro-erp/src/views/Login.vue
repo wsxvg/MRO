@@ -290,7 +290,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import BaseModal from '@/components/BaseModal.vue'
@@ -300,6 +300,13 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const SECURITY_QUESTION = auth.securityQuestion
+
+// 改密码成功后已登录，自动跳转
+watch(() => auth.loggedIn, (val) => {
+  if (val && router.currentRoute.value.path === '/login') {
+    router.push('/dashboard')
+  }
+})
 
 // Form state
 const password = ref('')
