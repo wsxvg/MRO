@@ -14,18 +14,12 @@
           销售商品
         </router-link>
       </div>
-      <div class="flex items-center gap-3">
-        <button @click="toggleAmounts" :title="showAmounts ? '隐藏金额' : '显示金额'" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border" :class="showAmounts ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-400 border-gray-200 hover:text-gray-600 hover:border-gray-300'">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-            <path v-if="showAmounts" stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-            <path v-if="showAmounts" stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path v-if="!showAmounts" stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-          </svg>
-          {{ showAmounts ? '金额可见' : '金额隐藏' }}
-        </button>
-        <div class="flex items-center gap-2 surface px-3 py-1.5">
-          <i class="ri-calendar-line text-gray-400 text-sm"></i>
-          <select v-model="selectedPeriod" class="text-sm text-gray-600 bg-transparent border-none outline-none focus:ring-0 py-0 cursor-pointer">
+      <button @click="toggleAmounts" :title="showAmounts ? '隐藏金额' : '显示金额'" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer" :class="showAmounts ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-400 border-gray-200 hover:text-gray-600'">
+        {{ showAmounts ? '👁 可见' : '👁 隐藏' }}
+      </button>
+      <div class="flex items-center gap-2 surface px-3 py-1.5">
+        <i class="ri-calendar-line text-gray-400 text-sm"></i>
+        <select v-model="selectedPeriod" class="text-sm text-gray-600 bg-transparent border-none outline-none focus:ring-0 py-0 cursor-pointer">
           <option value="thisMonth">本月</option>
           <option value="lastMonth">上月</option>
           <option value="thisYear">本年</option>
@@ -75,31 +69,26 @@
     </div>
 
     <template v-else>
-      <!-- Hero 销售数字 -->
-      <div class="grid grid-cols-1 mb-6">
-        <div class="surface-strong p-5 flex items-center justify-between">
-          <div>
-            <div class="text-xs font-medium text-primary-400 uppercase tracking-wide">本月销售额</div>
-            <div class="text-3xl font-bold text-primary-900 mt-1 tracking-tight">{{ maskMoney(monthlySales) }}</div>
-            <div class="flex items-center gap-2 mt-2 text-xs">
-              <span :class="salesChange >= 0 ? 'text-emerald-500' : 'text-red-500'">
-                {{ salesChange >= 0 ? '↑' : '↓' }} {{ Math.abs(salesChange) }}% 较上月
-              </span>
+      <!-- KPI Cards -->
+      <div ref="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- 本月销售额 -->
+        <div class="surface-strong p-4 kpi-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">{{ selectedPeriodLabel }}销售额</span>
+            <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
+              <i class="ri-handbag-line text-emerald-500 text-xs"></i>
             </div>
           </div>
-          <div class="flex gap-2">
-            <button @click="$router.push('/sales/quick')" class="px-4 py-2 bg-primary-900 text-white rounded-xl text-sm font-semibold hover:bg-primary-800 transition-colors shadow-sm">
-              ⚡ 快速开单
-            </button>
-            <button @click="$router.push('/products')" class="px-4 py-2 bg-white text-primary-700 border border-primary-200 rounded-xl text-sm font-medium hover:bg-primary-50 transition-colors">
-              🔍 查库存
-            </button>
+          <div ref="salesValueRef" class="text-2xl font-bold text-gray-900 mb-1">{{ maskMoney(monthlySales) }}</div>
+          <div class="flex items-center gap-1">
+            <span :class="salesChange >= 0 ? 'text-green-600' : 'text-red-500'" class="text-xs font-medium inline-flex items-center gap-0.5">
+              <i :class="salesChange >= 0 ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'"></i>
+              {{ Math.abs(salesChange) }}%
+            </span>
+            <span class="text-xs text-gray-400">较上月</span>
           </div>
+          <div ref="spark2Ref" class="mt-1 h-9 w-full" />
         </div>
-      </div>
-
-      <!-- KPI Cards -->
-      <div ref="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <!-- 库存周转率 -->
         <div class="surface-strong p-4 kpi-card">
           <div class="flex items-center justify-between mb-2">
@@ -228,7 +217,7 @@
                 </div>
                 <p class="text-xs text-gray-500 mt-0.5 truncate">{{ d.item_summary }}</p>
               </div>
-              <span class="text-sm font-semibold text-gray-900 flex-shrink-0 ml-3">{{ maskMoneyFixed(d.total_amount) }}</span>
+              <span class="text-sm font-semibold text-gray-900 flex-shrink-0 ml-3">{{ maskMoney(d.total_amount) }}</span>
             </router-link>
           </div>
         </div>
@@ -445,18 +434,9 @@ import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 
-// Privacy: amounts hidden by default
 const showAmounts = ref(localStorage.getItem('mro_show_amounts') === 'true')
-function toggleAmounts() {
-  showAmounts.value = !showAmounts.value
-  localStorage.setItem('mro_show_amounts', String(showAmounts.value))
-}
-function maskMoney(value: number): string {
-  return showAmounts.value ? '¥' + value.toLocaleString() : '***'
-}
-function maskMoneyFixed(value: number, decimals = 2): string {
-  return showAmounts.value ? '¥' + value.toFixed(decimals) : '***'
-}
+function toggleAmounts() { showAmounts.value = !showAmounts.value; localStorage.setItem('mro_show_amounts', String(showAmounts.value)) }
+function maskMoney(value: number): string { return showAmounts.value ? '¥' + value.toLocaleString() : '***' }
 
 const loading = ref(true)
 const showAnalysis = ref(false)
@@ -859,7 +839,7 @@ async function loadData(force = false) {
 
     // GSAP animations
     animateKpiCards()
-    if (showAmounts.value) animateSales()
+    animateSales()
     animateTurnover()
     animateLowStock()
 
@@ -898,14 +878,8 @@ function sendDesktopNotification(title: string, body: string) {
   }
 }
 
-watch(selectedPeriod, () => {
-  loadData()
-})
-
-// 金额隐私：显示时重播 CountUp 动画
-watch(showAmounts, (val) => {
-  if (val) animateSales()
-})
+watch(selectedPeriod, () => { loadData() })
+watch(showAmounts, (val) => { if (val) animateSales() })
 
 onMounted(async () => {
   await loadData()
