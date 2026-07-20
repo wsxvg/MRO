@@ -85,11 +85,11 @@
         </button>
         <div v-show="!sidebarCollapsed" class="flex items-center gap-3">
           <div class="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
-            H
+            {{ auth.isGuest ? 'G' : 'H' }}
           </div>
           <div>
-            <span class="block text-sm text-gray-700 font-medium">管理员</span>
-            <span class="block text-[11px] text-gray-400">本地账号</span>
+            <span class="block text-sm text-gray-700 font-medium">{{ auth.isGuest ? '游客' : '管理员' }}</span>
+            <span class="block text-[11px] text-gray-400">{{ auth.isGuest ? '仅浏览' : '本地账号' }}</span>
           </div>
         </div>
         <div v-show="sidebarCollapsed" class="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
@@ -159,9 +159,9 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <div class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm">
-                H
+                {{ auth.isGuest ? 'G' : 'H' }}
               </div>
-              <span class="text-sm text-gray-700">管理员</span>
+              <span class="text-sm text-gray-700">{{ auth.isGuest ? '游客' : '管理员' }}</span>
             </div>
             <button class="text-gray-400 hover:text-red-500 transition-colors" @click="handleLogout" title="退出登录">
               <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -266,14 +266,21 @@ interface NavItem {
 const pendingDeliveryCount = ref(0)
 const pendingPurchaseCount = ref(0)
 
-const navItems = computed<NavItem[]>(() => [
-  { label: '仪表板', path: '/dashboard', icon: 'home' },
-  { label: '库存查询', path: '/products', icon: 'cube' },
-  { label: '采购管理', path: '/stock/in', icon: 'download', badge: pendingPurchaseCount.value },
-  { label: '销售管理', path: '/sales', icon: 'receipt', badge: pendingDeliveryCount.value },
-  { label: '客户管理', path: '/customers', icon: 'users' },
-  { label: '系统设置', path: '/settings/warehouses', icon: 'gear' },
-])
+const navItems = computed<NavItem[]>(() => {
+  const allItems: NavItem[] = [
+    { label: '仪表板', path: '/dashboard', icon: 'home' },
+    { label: '库存查询', path: '/products', icon: 'cube' },
+    { label: '采购管理', path: '/stock/in', icon: 'download', badge: pendingPurchaseCount.value },
+    { label: '销售管理', path: '/sales', icon: 'receipt', badge: pendingDeliveryCount.value },
+    { label: '客户管理', path: '/customers', icon: 'users' },
+    { label: '系统设置', path: '/settings/warehouses', icon: 'gear' },
+  ]
+  // 游客只能看仪表板 + 库存查询
+  if (auth.isGuest) {
+    return allItems.filter(item => item.path === '/dashboard' || item.path === '/products')
+  }
+  return allItems
+})
 
 function isActive(path: string): boolean {
   if (path === '/dashboard') return route.path === '/dashboard'

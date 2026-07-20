@@ -13,8 +13,8 @@
       @filter-change="onCategoryChange"
     />
 
-    <!-- Batch action bar -->
-    <div v-if="selectedIds.length > 0" class="flex items-center gap-3 mb-4 px-1">
+    <!-- Batch action bar (only for admin) -->
+    <div v-if="selectedIds.length > 0 && !auth.isGuest" class="flex items-center gap-3 mb-4 px-1">
       <span class="text-sm text-gray-500">已选 {{ selectedIds.length }} 项</span>
       <button class="btn-secondary text-sm" @click="selectedIds = []">取消选择</button>
       <button class="btn-secondary text-sm border-red-300 text-red-600 hover:bg-red-50" @click="handleBatchDisable">批量停用</button>
@@ -91,8 +91,11 @@ import BaseTable from '@/components/BaseTable.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import BasePagination from '@/components/BasePagination.vue'
 import TableSkeleton from '@/components/TableSkeleton.vue'
+import { useAuthStore } from '@/stores/auth'
 
-const columns = [
+const auth = useAuthStore()
+
+const allColumns = [
   { key: 'name', label: '名称' },
   { key: 'specification', label: '规格' },
   { key: 'category_name', label: '分类' },
@@ -101,6 +104,7 @@ const columns = [
   { key: 'stock_quantity', label: '库存', align: 'right' as const },
   { key: 'actions', label: '操作', align: 'right' as const }
 ]
+const columns = computed(() => auth.isGuest ? allColumns.filter(c => c.key !== 'actions') : allColumns)
 
 const categoryOptions = computed(() => [{
   key: 'category_id',

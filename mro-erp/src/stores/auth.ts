@@ -7,10 +7,15 @@ const DEFAULT_EMAIL = 'huiyou@mro-dev.xyz'
 const DEFAULT_SECURITY_QUESTION = '王道硕的手机号是什么'
 const DEFAULT_SECURITY_ANSWER = '17826038535'
 
+// 游客账号（可在 Supabase 中创建，密码用于自动登录）
+const GUEST_EMAIL = 'guest@mro-dev.xyz'
+const GUEST_PASSWORD = 'guest123456'
+
 export const useAuthStore = defineStore('auth', () => {
   const loggedIn = ref(false)
   const loading = ref(false)
   const initialized = ref(false)
+  const isGuest = ref(false)
   const securityQuestion = ref(DEFAULT_SECURITY_QUESTION)
   let authListener: { data: { subscription: { unsubscribe: () => void } } } | null = null
 
@@ -23,6 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
     initPromise = (async () => {
       const { data: { session } } = await supabase.auth.getSession()
       loggedIn.value = !!session
+      isGuest.value = session?.user?.email === GUEST_EMAIL
       initialized.value = true
 
       // 从数据库获取安全问题（降级到默认值）
@@ -44,21 +50,22 @@ export const useAuthStore = defineStore('auth', () => {
     authListener = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
         loggedIn.value = true
+        // 检测是否为游客登录
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          isGuest.value = session?.user?.email === GUEST_EMAIL
+        })
       } else if (event === 'SIGNED_OUT') {
         loggedIn.value = false
+        isGuest.value = false
       }
     })
 
     return initPromise
   }
 
-  async function login(username: string, password: string) {
+  async function login(password: string) {
     loading.value = true
     try {
-      if (username !== DEFAULT_USERNAME) {
-        return { success: false as const, error: '用户名或密码错误' }
-      }
-
       const { error } = await supabase.auth.signInWithPassword({
         email: DEFAULT_EMAIL,
         password,
@@ -66,12 +73,13 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
-          return { success: false as const, error: '用户名或密码错误' }
+          return { success: false as const, error: '密码错误' }
         }
         return { success: false as const, error: `登录失败: ${error.message}` }
       }
 
       loggedIn.value = true
+      isGuest.value = false
       return { success: true as const }
     } finally {
       loading.value = false
@@ -125,8 +133,29 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function guestLogin() {
+    loading.value = true
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: GUEST_EMAIL,
+        password: GUEST_PASSWORD,
+      })
+
+      if (error) {
+        return { success: false as const, error: '游客登录暂不可用，请联系管理员创建游客账号' }
+      }
+
+      loggedIn.value = true
+      isGuest.value = true
+      return { success: true as const }
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function logout() {
     loggedIn.value = false
+    isGuest.value = false
     await supabase.auth.signOut()
     if (authListener) {
       authListener.data.subscription.unsubscribe()
@@ -141,7 +170,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    loggedIn, loading, initialized, isLoggedIn, securityQuestion,
-    initialize, login, changePassword, logout, $dispose
+    loggedIn, loading, initialized, isLoggedIn, isGuest, securityQuestion,
+    initialize, login, guestLogin, changePassword, logout, $dispose
   }
 })

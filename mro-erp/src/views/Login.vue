@@ -147,29 +147,7 @@
         <!-- Login Form -->
         <form @submit.prevent="handleLogin" class="space-y-5">
           <div class="space-y-1.5">
-            <label for="username" class="text-sm font-medium text-gray-700">用户名</label>
-            <div class="relative">
-              <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <input
-                id="username"
-                v-model="username"
-                type="text"
-                placeholder="请输入用户名"
-                autocomplete="username"
-                required
-                class="w-full h-11 pl-10 pr-3.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] transition-all duration-200"
-                @focus="isFieldFocused = 'username'"
-                @blur="isFieldFocused = ''"
-              />
-            </div>
-          </div>
-
-          <div class="space-y-1.5">
-            <label for="password" class="text-sm font-medium text-gray-700">密码</label>
+            <label for="password" class="text-sm font-medium text-gray-700">管理员密码</label>
             <div class="relative">
               <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,7 +158,7 @@
                 id="password"
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="请输入密码"
+                placeholder="请输入管理员密码"
                 autocomplete="current-password"
                 required
                 class="w-full h-11 pl-10 pr-10 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] transition-all duration-200"
@@ -204,24 +182,40 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-end text-sm">
-            <button type="button" @click="openChangePassword" class="text-primary-600 hover:text-primary-700 font-medium transition-colors">
-              修改密码
-            </button>
-          </div>
-
           <button
             type="submit"
             :disabled="loading"
-            class="w-full h-11 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 active:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+            class="w-full h-11 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 active:bg-gray-950 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
           >
             <svg v-if="loading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            {{ loading ? '登录中...' : '登录' }}
+            {{ loading ? '登录中...' : '管理员登录' }}
           </button>
         </form>
+
+        <!-- Guest login -->
+        <div class="mt-4 pt-4 border-t border-gray-100">
+          <p class="text-center text-xs text-gray-400 mb-3">或</p>
+          <button
+            type="button"
+            :disabled="guestLoading"
+            @click="handleGuestLogin"
+            class="w-full h-10 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 flex items-center justify-center gap-2 border border-gray-200"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
+            {{ guestLoading ? '加载中...' : '游客浏览（仅查看商品）' }}
+          </button>
+
+          <div class="flex items-center justify-end mt-3 text-sm">
+            <button type="button" @click="openChangePassword" class="text-gray-400 hover:text-gray-600 transition-colors">
+              忘记密码？
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -308,10 +302,10 @@ const auth = useAuthStore()
 const SECURITY_QUESTION = auth.securityQuestion
 
 // Form state
-const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const guestLoading = ref(false)
 const showPassword = ref(false)
 const isFieldFocused = ref('')
 
@@ -409,7 +403,7 @@ async function handleLogin() {
   error.value = ''
   loading.value = true
   try {
-    const result = await auth.login(username.value, password.value)
+    const result = await auth.login(password.value)
     if (result.success) {
       router.push('/dashboard')
     } else {
@@ -417,6 +411,21 @@ async function handleLogin() {
     }
   } finally {
     loading.value = false
+  }
+}
+
+async function handleGuestLogin() {
+  error.value = ''
+  guestLoading.value = true
+  try {
+    const result = await auth.guestLogin()
+    if (result.success) {
+      router.push('/dashboard')
+    } else {
+      error.value = result.error || '游客登录失败'
+    }
+  } finally {
+    guestLoading.value = false
   }
 }
 

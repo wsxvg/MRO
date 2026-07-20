@@ -176,7 +176,13 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { productsApi, categoriesApi, unitsApi, fetchWarehouses, fetchStocks, createStockAdjustment } from '@/api'
 import type { Category, Unit, Warehouse } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 
+const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
+
+// 游客不允许编辑，重定向到商品列表
 const props = withDefaults(defineProps<{
   standalone?: boolean
   productId?: number | null
@@ -190,8 +196,6 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const route = useRoute()
-const router = useRouter()
 const isEdit = props.standalone ? !!route.params.id : !!props.productId
 const categories = ref<Category[]>([])
 const units = ref<Unit[]>([])
@@ -390,6 +394,7 @@ watch(() => props.productId, () => {
 })
 
 onMounted(() => {
+  if (auth.isGuest) { router.push('/products'); return }
   loadCategories()
   loadUnits()
   loadProduct()
