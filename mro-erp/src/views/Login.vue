@@ -418,12 +418,8 @@ async function handleGuestLogin() {
   error.value = ''
   guestLoading.value = true
   try {
-    const result = await auth.guestLogin()
-    if (result.success) {
-      router.push('/dashboard')
-    } else {
-      error.value = result.error || '游客登录失败'
-    }
+    await auth.guestLogin()
+    router.push('/dashboard')
   } finally {
     guestLoading.value = false
   }

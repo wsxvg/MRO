@@ -128,12 +128,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function guestLogin() {
+  function guestLogin() {
     // 游客无需 Supabase 认证，直接放行
     // 数据读取靠 Supabase RLS 匿名策略控制
     loggedIn.value = true
     isGuest.value = true
-    return { success: true as const }
   }
 
   async function logout() {
