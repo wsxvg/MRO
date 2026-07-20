@@ -12,11 +12,9 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="!error && loading" class="flex items-center justify-center py-12">
+    <div v-else-if="loading" class="flex items-center justify-center py-12">
       <div class="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
     </div>
-
-    <ConfirmDialog v-model="showDeleteConfirm" title="删除供应商" :message="'确定删除供应商「' + deletingSupplier?.name + '」？'" @confirm="doDelete" />
 
     <!-- 列表 -->
     <div v-else-if="!error && suppliers.length > 0" class="bg-white rounded-xl border border-gray-100">
@@ -82,6 +80,7 @@
         </div>
       </div>
     </div>
+    <ConfirmDialog v-model="showDeleteConfirm" title="删除供应商" :message="'确定删除供应商\u300C' + deletingSupplier?.name + '\u300D？'" @confirm="doDelete" />
   </div>
 </template>
 
