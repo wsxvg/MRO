@@ -117,10 +117,10 @@ defineExpose({ showError })
 
 <style scoped>
 .dialog-enter-active {
-  transition: all 0.2s ease-out;
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
 .dialog-leave-active {
-  transition: all 0.15s ease-in;
+  transition: transform 150ms ease-out, opacity 150ms ease-out;
 }
 .dialog-enter-from {
   opacity: 0;
@@ -133,10 +133,10 @@ defineExpose({ showError })
 }
 
 .msg-enter-active {
-  transition: all 0.2s ease-out;
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
 .msg-leave-active {
-  transition: all 0.15s ease-in;
+  transition: transform 150ms ease-out, opacity 150ms ease-out;
 }
 .msg-enter-from,
 .msg-leave-to {

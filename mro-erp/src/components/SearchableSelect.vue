@@ -242,10 +242,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .dropdown-enter-active {
-  transition: all 0.15s ease-out;
+  transition: transform 150ms ease-out, opacity 150ms ease-out;
 }
 .dropdown-leave-active {
-  transition: all 0.1s ease-in;
+  transition: transform 100ms ease-out, opacity 100ms ease-out;
 }
 .dropdown-enter-from {
   opacity: 0;

@@ -54,10 +54,10 @@ const iconMap: Record<ToastType, string> = {
 
 <style scoped>
 .toast-enter-active {
-  transition: all 0.3s ease-out;
+  transition: transform 250ms ease-out, opacity 250ms ease-out;
 }
 .toast-leave-active {
-  transition: all 0.2s ease-in;
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
 .toast-enter-from {
   opacity: 0;
@@ -68,6 +68,6 @@ const iconMap: Record<ToastType, string> = {
   transform: translateX(40px) scale(0.96);
 }
 .toast-move {
-  transition: transform 0.3s ease;
+  transition: transform 300ms ease;
 }
 </style>

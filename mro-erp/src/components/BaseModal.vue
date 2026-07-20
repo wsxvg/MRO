@@ -70,16 +70,16 @@ function onEnter(el: Element, done: () => void) {
   const tl = gsap.timeline({ onComplete: done })
   tl.to(el, { opacity: 1, duration: 0.15 })
   if (overlay) tl.to(overlay, { opacity: 1, duration: 0.2 }, '<')
-  if (panel) tl.to(panel, { opacity: 1, scale: 1, y: 0, duration: 0.35, ease: 'back.out(1.2)' }, '-=0.1')
+  if (panel) tl.to(panel, { opacity: 1, scale: 1, y: 0, duration: 0.28, ease: 'power3.out' }, '-=0.1')
 }
 
 function onLeave(el: Element, done: () => void) {
   const panel = el.querySelector('.modal-panel')
   const overlay = el.querySelector('.modal-overlay')
   const tl = gsap.timeline({ onComplete: done })
-  if (panel) tl.to(panel, { opacity: 0, scale: 0.96, y: 8, duration: 0.2, ease: 'power2.in' })
-  if (overlay) tl.to(overlay, { opacity: 0, duration: 0.2 }, '-=0.1')
-  tl.to(el, { opacity: 0, duration: 0.1 }, '-=0.05')
+  if (panel) tl.to(panel, { opacity: 0, scale: 0.97, y: 8, duration: 0.18, ease: 'power2.out' })
+  if (overlay) tl.to(overlay, { opacity: 0, duration: 0.18 }, '-=0.08')
+  tl.to(el, { opacity: 0, duration: 0.08 }, '-=0.05')
 }
 
 const props = withDefaults(defineProps<{
