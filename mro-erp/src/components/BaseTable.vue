@@ -32,7 +32,7 @@
             v-for="col in columns"
             :key="col.key"
             :class="[
-              'text-xs font-medium text-gray-400 uppercase tracking-wider pb-3',
+              'text-xs font-semibold text-primary-400 uppercase tracking-wider pb-3 border-b-2 border-primary-200',
               col.align === 'right' ? 'text-right' : '',
               col.align === 'center' ? 'text-center' : '',
               col.sortKey ? 'cursor-pointer select-none hover:text-gray-600' : ''
@@ -54,7 +54,7 @@
         <tr
           v-for="(row, rowIdx) in data"
           :key="row.id || rowIdx"
-          class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+          class="border-b border-primary-100 hover:bg-primary-50/60 transition-colors"
           :class="{ 'bg-primary-50/30': selectable && isSelected(row) }"
         >
           <td v-if="selectable" class="py-3 w-10">

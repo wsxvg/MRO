@@ -75,30 +75,35 @@
     </div>
 
     <template v-else>
-      <!-- KPI Cards -->
-      <div ref="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <!-- 本月销售额 -->
-        <div class="surface-strong p-4 kpi-card">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">{{ selectedPeriodLabel }}销售额</span>
-            <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
-              <i class="ri-handbag-line text-emerald-500 text-xs"></i>
+      <!-- Hero 数字 -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+        <div class="lg:col-span-4 surface-strong p-5 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-medium text-primary-400 uppercase tracking-wide">本月销售额</div>
+            <div class="text-3xl font-bold text-primary-900 mt-1 tracking-tight">{{ maskMoney(monthlySales) }}</div>
+            <div class="flex items-center gap-3 mt-2 text-xs text-primary-400">
+              <span :class="salesChange >= 0 ? 'text-emerald-500' : 'text-red-500'">
+                {{ salesChange >= 0 ? '↑' : '↓' }} {{ Math.abs(salesChange) }}% 较上月
+              </span>
             </div>
           </div>
-          <div ref="salesValueRef" class="text-2xl font-bold text-gray-900 mb-1">{{ maskMoney(monthlySales) }}</div>
-          <div class="flex items-center gap-1">
-            <span :class="salesChange >= 0 ? 'text-green-600' : 'text-red-500'" class="text-xs font-medium inline-flex items-center gap-0.5">
-              <i :class="salesChange >= 0 ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'"></i>
-              {{ Math.abs(salesChange) }}%
-            </span>
-            <span class="text-xs text-gray-400">较上月</span>
+          <div class="flex gap-2">
+            <button @click="$router.push('/sales/quick')" class="px-4 py-2 bg-primary-900 text-white rounded-xl text-sm font-semibold hover:bg-primary-800 transition-colors shadow-sm">
+              ⚡ 快速开单
+            </button>
+            <button @click="$router.push('/products')" class="px-4 py-2 bg-white text-primary-700 border border-primary-200 rounded-xl text-sm font-medium hover:bg-primary-50 transition-colors">
+              🔍 查库存
+            </button>
           </div>
-          <div ref="spark2Ref" class="mt-1 h-9 w-full" />
         </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div ref="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <!-- 库存周转率 -->
         <div class="surface-strong p-4 kpi-card">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">库存周转率</span>
+            <span class="text-xs font-medium text-primary-400 uppercase tracking-wider">库存周转率</span>
             <div class="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
               <i class="ri-refresh-line text-amber-500 text-xs"></i>
             </div>

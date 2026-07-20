@@ -36,10 +36,14 @@
         <!-- Cart Items (scrollable) -->
         <div v-if="items.length > 0" class="flex-1 overflow-y-auto px-4 py-2 space-y-1">
           <div v-for="(item, idx) in items" :key="item.product_id" class="flex items-center gap-2 py-2.5 border-b border-gray-50 last:border-0">
-            <span v-if="item.cost_price > 0 && item.unit_price < item.cost_price"
-              class="text-sm flex-shrink-0" title="💀 低于进价！">💀</span>
-            <span v-else
-              class="w-2.5 h-2.5 rounded-full flex-shrink-0" :class="marginColor(item)" :title="marginTip(item)"></span>
+            <!-- 毛利色条 -->
+            <div v-if="marginGradient(item)" class="flex-shrink-0 flex items-center gap-1.5" :title="marginTip(item)">
+              <div class="w-8 h-1.5 rounded-full overflow-hidden" :style="{ background: '#e5e7eb' }">
+                <div class="h-full rounded-full transition-all duration-300" :style="{ width: marginGradient(item).pct + '%', background: marginGradient(item).color }"></div>
+              </div>
+              <span class="text-[11px] font-semibold" :style="{ color: marginGradient(item).color }">{{ marginGradient(item).label }}</span>
+            </div>
+            <span v-else class="w-1.5 h-1.5 rounded-full bg-primary-300 flex-shrink-0" title="未知进价"></span>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">{{ item.product_name }}</p>
               <div class="flex items-center gap-1 mt-0.5">
@@ -264,7 +268,7 @@ const commonStore = useCommonStore()
 
 // Composables
 const cart = useCart()
-const { items, total, itemCount, calcLine, addProduct, increment, decrement, removeItem, clearCart, marginColor, marginTip } = cart
+const { items, total, itemCount, calcLine, addProduct, increment, decrement, removeItem, clearCart, marginColor, marginTip, marginGradient } = cart
 const pricing = useCustomerPricing(items, calcLine)
 const { cacheProductPrices, getPriceForProduct, onCustomerChange } = pricing
 const search = useProductSearch()

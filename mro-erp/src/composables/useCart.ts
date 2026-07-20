@@ -87,6 +87,24 @@ export function useCart() {
     return `毛利 ${margin}%`
   }
 
+  // 渐变色条 + 百分比标签（替代 emoji 五色圆点）
+  function marginGradient(item: { unit_price: number; cost_price: number }) {
+    if (item.cost_price <= 0) return null
+    const margin = item.unit_price > 0 ? (item.unit_price - item.cost_price) / item.unit_price : -1
+    const pct = Math.round(margin * 100)
+    let color: string, bg: string, label: string
+    if (margin < 0) {
+      color = '#dc2626'; bg = '#fef2f2'; label = `${pct}% 赔`
+    } else if (margin < 0.1) {
+      color = '#d97706'; bg = '#fffbeb'; label = `${pct}% 薄`
+    } else if (margin < 0.3) {
+      color = '#2563eb'; bg = '#eff6ff'; label = `${pct}%`
+    } else {
+      color = '#059669'; bg = '#ecfdf5'; label = `${pct}% 优`
+    }
+    return { color, bg, label, pct: Math.max(0, Math.min(100, margin * 100)) }
+  }
+
   return {
     items,
     total,
@@ -99,5 +117,6 @@ export function useCart() {
     clearCart,
     marginColor,
     marginTip,
+    marginGradient,
   }
 }
