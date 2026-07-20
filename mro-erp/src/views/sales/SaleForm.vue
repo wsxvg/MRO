@@ -301,12 +301,16 @@ async function handleSubmit(status: string) {
   } finally { saving.value = false }
 }
 
+const formLoading = ref(true)
+
 onMounted(async () => {
+  formLoading.value = true
   const [cRes, wRes, pRes] = await Promise.all([fetchCustomers({}), fetchWarehouses(), fetchProducts({})])
   if (cRes.data) customers.value = cRes.data
   if (wRes.data) warehouses.value = wRes.data
   if (pRes.data) products.value = pRes.data
-  loadForm()
+  await loadForm()
   if (!isEdit) addRow()
+  formLoading.value = false
 })
 </script>

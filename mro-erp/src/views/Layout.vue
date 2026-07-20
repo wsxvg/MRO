@@ -282,7 +282,7 @@ const navItems = computed<NavItem[]>(() => {
     { label: '客户管理', path: '/customers', icon: 'users' },
     { label: '系统设置', path: '/settings/warehouses', icon: 'gear' },
   ]
-  // 游客只能看仪表板 + 库存查询
+  // 游客只能看仪表板 + 商品管理
   if (auth.isGuest) {
     return allItems.filter(item => item.path === '/dashboard' || item.path === '/products')
   }

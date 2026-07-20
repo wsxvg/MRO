@@ -5,13 +5,21 @@
       <button class="btn-primary text-sm" @click="openForm()">+ 新增供应商</button>
     </div>
 
+    <!-- Error -->
+    <div v-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 flex items-center justify-between">
+      <span>{{ error }}</span>
+      <button @click="fetchData" class="text-red-600 font-medium hover:underline">重试</button>
+    </div>
+
     <!-- Loading -->
-    <div v-if="loading" class="flex items-center justify-center py-12">
+    <div v-if="!error && loading" class="flex items-center justify-center py-12">
       <div class="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
     </div>
 
+    <ConfirmDialog v-model="showDeleteConfirm" title="删除供应商" :message="'确定删除供应商「' + deletingSupplier?.name + '」？'" @confirm="doDelete" />
+
     <!-- 列表 -->
-    <div v-else-if="suppliers.length > 0" class="bg-white rounded-xl border border-gray-100">
+    <div v-else-if="!error && suppliers.length > 0" class="bg-white rounded-xl border border-gray-100">
       <table class="w-full text-sm">
         <thead>
           <tr class="text-left text-gray-500 border-b border-gray-100">
@@ -81,9 +89,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { suppliersApi } from '@/api'
 import type { Supplier } from '@/types'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const suppliers = ref<Supplier[]>([])
 const loading = ref(true)
+const error = ref('')
+const showDeleteConfirm = ref(false)
+const deletingSupplier = ref<Supplier | null>(null)
 
 const formDialog = reactive({
   visible: false,
@@ -99,9 +111,15 @@ const formDialog = reactive({
 
 async function fetchData() {
   loading.value = true
-  const { data } = await suppliersApi.getAll()
-  suppliers.value = data ?? []
-  loading.value = false
+  error.value = ''
+  try {
+    const { data } = await suppliersApi.getAll()
+    suppliers.value = data ?? []
+  } catch (e) {
+    error.value = '加载失败，请检查网络后重试'
+  } finally {
+    loading.value = false
+  }
 }
 
 function openForm(supplier?: Supplier) {
@@ -143,10 +161,15 @@ async function handleSave() {
 }
 
 async function handleDelete(supplier: Supplier) {
-  if (!confirm(`确定删除供应商「${supplier.name}」？`)) return
-  const { error } = await suppliersApi.delete(supplier.id)
+  deletingSupplier.value = supplier
+  showDeleteConfirm.value = true
+}
+async function doDelete() {
+  if (!deletingSupplier.value) return
+  showDeleteConfirm.value = false
+  const { error } = await suppliersApi.delete(deletingSupplier.value.id)
   if (!error) {
-    suppliers.value = suppliers.value.filter(s => s.id !== supplier.id)
+    suppliers.value = suppliers.value.filter(s => s.id !== deletingSupplier.value!.id)
   }
 }
 

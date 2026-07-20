@@ -136,7 +136,7 @@
           </div>
           <div class="text-2xl font-bold text-gray-900 mb-1">{{ maskMoney(totalDebt) }}</div>
           <div :class="totalDebt > 0 ? 'text-orange-500' : 'text-gray-400'" class="text-xs">
-            {{ unpaidCustomers.length }} 个客户欠款
+            {{ unpaidCustomers.length }} 个客户应收
           </div>
         </div>
       </div>

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI 审查 - 前后对比 (Emil 设计工程 + Frontend Design)</title>
+<style>
+:root{--bg:#f0f2f5;--card:#fff;--tx:#1a1a2e;--t2:#6b7280;--bd:#e5e7eb;--r:12px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Inter,-apple-system,sans-serif;background:var(--bg);color:var(--tx);line-height:1.5}
+header{background:#0f172a;color:#f8fafc;padding:32px 40px;border-bottom:3px solid #ef4444}
+header h1{font-size:28px;font-weight:700;letter-spacing:-.6px}
+header p{font-size:14px;color:#94a3b8;margin-top:6px}
+.stats{display:flex;gap:24px;margin-top:20px;font-size:13px}
+.stat{padding:8px 16px;border-radius:8px;font-weight:600}
+.stat.crit{background:#fef2f2;color:#dc2626}
+.stat.warn{background:#fffbeb;color:#d97706}
+.stat.info{background:#eff6ff;color:#2563eb}
+main{max-width:1280px;margin:0 auto;padding:32px 24px}
+section{background:var(--card);border-radius:16px;padding:32px;margin-bottom:32px;border:1px solid var(--bd);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+section h2{font-size:18px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+section h2 .tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;letter-spacing:.5px}
+.tag.high{background:#fef2f2;color:#dc2626}
+.tag.med{background:#fffbeb;color:#d97706}
+.tag.low{background:#eff6ff;color:#2563eb}
+section>p.sub{font-size:13px;color:var(--t2);margin-bottom:20px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.comp{border-radius:10px;border:1px solid var(--bd);overflow:hidden}
+.comp .lbl{font-size:11px;font-weight:600;letter-spacing:.5px;padding:6px 12px;text-transform:uppercase}
+.comp.bad .lbl{background:#fef2f2;color:#dc2626}
+.comp.good .lbl{background:#ecfdf5;color:#059669}
+.comp .ctn{padding:16px;font-size:13px}
+.comp code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:11px;font-family:monospace}
+.showcase{background:#f8fafc;border:1px solid var(--bd);border-radius:10px;padding:14px;margin-top:10px}
+.menu-item{padding:8px 14px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:8px}
+.menu-item:hover{background:#f1f5f9}
+.menu-item .dot{width:6px;height:6px;border-radius:50%}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid;cursor:default}
+.btn.pri{background:#0f172a;color:#fff;border-color:#0f172a}
+.btn.sec{background:#fff;color:#374151;border-color:#e5e7eb}
+.btn.gh{background:transparent;color:#6b7280;border-color:transparent}
+.btn.dan{background:#fef2f2;color:#dc2626;border-color:#fecaca}
+.form-field{margin-bottom:10px}
+.form-field label{display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:3px}
+.form-field input,.form-field select{width:100%;height:36px;padding:0 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none}
+.form-field input:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.1)}
+.table{width:100%;border-collapse:collapse;font-size:12px}
+.table th{text-align:left;padding:8px 10px;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #f3f4f6}
+.table td{padding:10px;border-bottom:1px solid #f3f4f6}
+.tag-sm{display:inline-flex;padding:1px 8px;border-radius:9999px;font-size:10px;font-weight:600}
+.tag-sm.grn{background:#ecfdf5;color:#059669}
+.tag-sm.red{background:#fef2f2;color:#dc2626}
+.tag-sm.yel{background:#fffbeb;color:#d97706}
+@media(max-width:768px){.compare{grid-template-columns:1fr}main{padding:16px}section{padding:20px}}
+footer{padding:20px 40px;font-size:12px;color:#94a3b8;border-top:1px solid var(--bd);margin-top:10px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+<h1>汇友进销存 - UI 全面审查 前后对比</h1>
+<p>基于 Emil 设计工程哲学 + Frontend Design 技能审查 | 共审计 37 个 .vue 文件</p>
+<div class="stats">
+<div class="stat crit">12 个文件缺错误状态</div>
+<div class="stat crit">8 个文件缺加载状态</div>
+<div class="stat warn">2 个命名误导</div>
+<div class="stat warn">3 个按钮过密</div>
+<div class="stat info">2 个移动端问题</div>
+<div class="stat info">多处触控区偏小</div>
+</div>
+</header>
+<main>
+
+<!-- 1 -->
+<section>
+<h2><span class="tag high">高优</span> 1. "库存查询" → "商品管理"</h2>
+<p class="sub">ProductList.vue 页面标题名实不符，影响导航认知</p>
+<div class="compare">
+<div class="comp bad"><div class="lbl">Before</div><div class="ctn">
+<div style="font-weight:700;font-size:16px;margin-bottom:8px">库存查询</div>
+<div style="font-size:12px;color:#9ca3af">用户期望：看各仓库库存报表 → 实际：商品列表含编辑/停用</div>
+<div class="showcase"><div class="menu-item"><span class="dot" style="background:#2563eb"></span> 库存查询</div><div class="menu-item"><span style="color:#9ca3af;font-size:11px;margin-left:14px">实际是商品列表... 令人困惑</span></div></div>
+</div></div>
+<div class="comp good"><div class="lbl">After</div><div class="ctn">
+<div style="font-weight:700;font-size:16px;margin-bottom:8px">商品管理</div>
+<div style="font-size:12px;color:#059669">用户期望 = 实际功能：管理商品 + 查库存 + 编辑商品</div>
+<div class="showcase"><div class="menu-item"><span class="dot" style="background:#2563eb"></span> 商品管理</div><div class="menu-item" style="margin-left:14px;font-size:12px;color:#6b7280">商品列表 + 分类 + 单位 + 导入</div></div>
+</div></div></div>
+</section>
+
+<!-- 2 -->
+<section>
+<h2><span class="tag high">高优</span> 2. 表单字段突然出现（缺 Loading）</h2>
+<p class="sub">SaleForm/CustomerForm/ProductForm 初始空白 → 加载完后字段突然出现，闪烁体验极差</p>
+<div class="compare">
+<div class="comp bad"><div class="lbl">Before：空白表单突然填充</div><div class="ctn">
+<div style="position:relative;min-height:140px">
+<div style="position:absolute;top:0;left:0;right:0;opacity:.3;animation:pulse 1.2s infinite">
+  <div class="form-field"><label>客户</label><input value="---"></div>
+  <div class="form-field"><label>仓库</label><input value="---"></div>
+</div>
+<div style="position:absolute;top:0;left:0;right:0;opacity:0" id="flash">
+  <div class="form-field"><label>客户</label><input value="张三五金"></div>
+  <div class="form-field"><label>仓库</label><input value="主仓库"></div>
+</div>
+</div>
+<div style="font-size:11px;color:#dc2626;margin-top:4px">加载完成后字段突然出现，闪烁</div>
+</div></div>
+<div class="comp good"><div class="lbl">After：占位骨架屏</div><div class="ctn">
+<div class="form-field"><label>客户</label><div style="height:36px;border-radius:8px;background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;width:70%"></div></div>
+<div class="form-field"><label>仓库</label><div style="height:36px;border-radius:8px;background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;width:50%"></div></div>
+<div class="form-field"><label>备注</label><div style="height:60px;border-radius:8px;background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;width:90%"></div></div>
+<div style="font-size:11px;color:#059669;margin-top:4px">shimmer 占位符，加载完平滑替换</div>
+</div></div></div>
+</section>
+
+<!-- 3 -->
+<section>
+<h2><span class="tag high">高优</span> 3. 12 个页面 API 失败静默（缺错误状态）</h2>
+<p class="sub">SupplierList/UnitList/CategoryList/DataImportExport/WarehouseStock/... API 失败时只显示空状态或静默</p>
+<div class="compare">
+<div class="comp bad"><div class="lbl">Before：API 失败 = 静默显示空状态</div><div class="ctn">
+<div class="showcase" style="text-align:center;padding:24px">
+<div style="font-size:40px;margin-bottom:8px">📋</div>
+<div style="color:#9ca3af;font-size:13px">暂无供应商，点击上方按钮新增</div>
+<div style="margin-top:8px;font-size:11px;color:#dc2626">⚠ 用户不知道是加载失败！以为是空的</div>
+</div>
+</div></div>
+<div class="comp good"><div class="lbl">After：明确的错误 + 重试</div><div class="ctn">
+<div class="showcase" style="text-align:center;padding:24px">
+<div style="font-size:40px;margin-bottom:8px">⚠️</div>
+<div style="font-size:13px;font-weight:600;color:#374151">加载失败</div>
+<div style="color:#6b7280;font-size:12px;margin-top:4px">检查网络连接后重试</div>
+<button class="btn sec" style="margin-top:12px">🔄 重新加载</button>
+</div>
+</div></div></div>
+</section>
+
+<!-- 4 -->
+<section>
+<h2><span class="tag med">中优</span> 4. SaleForm 5 个按钮堆叠混乱</h2>
+<p class="sub">打印按钮(3个) + 保存按钮(2个) 混在一起，无主次区分，操作路径不清</p>
+<div class="compare">
+<div class="comp bad"><div class="lbl">Before：5 按钮堆叠</div><div class="ctn">
+<div class="btn-row">
+<button class="btn sec">🖨 打印销售单</button>
+<button class="btn sec">🖨 打印送货单</button>
+<button class="btn sec">🖨 打印报价单</button>
+</div>
+<div class="btn-row">
+<button class="btn pri">保存为待发货</button>
+<button class="btn pri" style="background:#059669;border-color:#059669">直接完成</button>
+</div>
+<div style="font-size:11px;color:#dc2626;margin-top:4px">打印和保存混在一起，哪个是主操作？</div>
+</div></div>
+<div class="comp good"><div class="lbl">After：分组 + 主次分明</div><div class="ctn">
+<div style="display:flex;gap:8px;margin-bottom:12px">
+<button class="btn pri">保存为待发货</button>
+<button class="btn pri" style="background:#059669;border-color:#059669">完成并发货</button>
+<button class="btn gh" style="font-size:11px">▼ 更多</button>
+</div>
+<div style="background:#f8fafc;border-radius:8px;padding:10px;display:flex;gap:8px;font-size:11px">
+<button class="btn sec" style="font-size:11px;padding:5px 10px">🖨 销售单</button>
+<button class="btn sec" style="font-size:11px;padding:5px 10px">🖨 送货单</button>
+<button class="btn sec" style="font-size:11px;padding:5px 10px">🖨 报价单</button>
+</div>
+<div style="font-size:11px;color:#059669;margin-top:4px">保存操作排第一行，打印收归"更多"子区</div>
+</div></div></div>
+</section>
+
+<!-- 5 -->
+<section>
+<h2><span class="tag med">中优</span> 5. CustomerList 操作列过密 (4 个操作)</h2>
+<p class="sub">收款/价格/编辑/删除 4 个文字链接挤在一行，手机端折行溢写</p>
+<div class="compare">
+<div class="comp bad"><div class="lbl">Before：4 个文字链接</div><div class="ctn">
+<div class="showcase"><table class="table"><thead><tr><th>客户</th><th>电话</th><th>操作</th></tr></thead><tbody>
+<tr><td>张三五金</td><td>138xxxx</td><td><a style="color:#2563eb;cursor:pointer;margin:0 3px">收款</a><a style="color:#2563eb;cursor:pointer;margin:0 3px">价格</a><a style="color:#6b7280;cursor:pointer;margin:0 3px">编辑</a><a style="color:#dc2626;cursor:pointer;margin:0 3px">删除</a></td></tr>
+</tbody></table></div>
+<div style="font-size:11px;color:#dc2626;margin-top:4px">4 个链接在 100px 操作列挤不下</div>
+</div></div>
+<div class="comp good"><div class="lbl">After：图标按钮 + dropdown</div><div class="ctn">
+<div class="showcase"><table class="table"><thead><tr><th>客户</th><th>电话</th><th>操作</th></tr></thead><tbody>
+<tr><td>张三五金</td><td>138xxxx</td><td>
+<button class="btn sec" style="font-size:11px;padding:4px 10px">收款</button>
+<button class="btn gh" style="font-size:11px;padding:4px 6px">价格</button>
+<button class="btn gh" style="font-size:11px;padding:4px 6px">···</button>
+</td></tr>
+</tbody></table></div>
+<div style="font-size:11px;color:#059669;margin-top:4px">前 2 个常用外显，其余收进 ··· 菜单</div>
+</div></div></div>
+</section>
+
+<!-- 6 -->
+<section>
+<h2><span class="tag med">中优</span> 6. SaleQuick 购物车固定宽度，移动端崩溃</h2>
+<p class="sub">左侧购物车 w-[420px] 固定宽，手机屏只有 375px</p>
+<div class="compare">
+<div class="comp bad"><div class="lbl">Before：420px 固定宽</div><div class="ctn">
+<div class="showcase" style="padding:10px;min-height:100px">
+<div style="display:flex">
+<div style="width:420px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:11px;color:#dc2626;flex-shrink:0">
+  购物车 420px... <br><b>超出手机屏宽!</b>
+</div>
+<div style="background:#f8fafc;flex:1;padding:10px;font-size:11px;color:#9ca3af">商品网格区域</div>
+</div>
+</div>
+</div></div>
+<div class="comp good"><div class="lbl">After：响应式 + 底部抽屉</div><div class="ctn">
+<div class="showcase" style="padding:10px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="text-align:center;font-size:12px;color:#6b7280">桌面：左右分栏，购物车 max-w(380px)</div>
+<div style="display:flex;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+<div style="flex:1;max-width:380px;background:#fff;padding:10px;font-size:11px">购物车</div>
+<div style="flex:2;background:#f8fafc;padding:10px;font-size:11px">商品网格</div>
+</div>
+<div style="text-align:center;font-size:12px;color:#6b7280;margin-top:4px">手机：全屏商品列表 + 底部购物车抽屉</div>
+<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px 8px 0 0;padding:12px;display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:12px;font-weight:600">3 件 · ¥128.50</span>
+<button class="btn pri" style="font-size:11px;padding:5px 12px">结账</button>
+</div>
+</div>
+</div></div></div>
+</section>
+
+<!-- 7 -->
+<section>
+<h2><span class="tag low">低优</span> 7. 触控区偏小（多处 32px）+ 原生 confirm() 不一致</h2>
+<p class="sub">32px 图标按钮 < 40px 触控标准；SupplierList 用原生 confirm() 而非统一的 ConfirmDialog</p>
+<div class="compare">
+<div class="comp bad"><div class="lbl">Before</div><div class="ctn">
+<div style="font-size:11px;margin-bottom:8px">32px 图标按钮（红色虚线框）：</div>
+<div style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:2px dashed #dc2626;border-radius:8px;margin-right:8px">✕</div>
+<div style="font-size:11px;color:#dc2626">触控区太小，手机难点</div>
+<div style="margin-top:12px;font-size:11px;margin-bottom:8px">删除供应商用的是原生 confirm()：</div>
+<code>if (confirm('确认删除该供应商？')){...}</code>
+<div style="font-size:11px;color:#dc2626;margin-top:4px">风格不一致（项目其他地方用 ConfirmDialog）</div>
+</div></div>
+<div class="comp good"><div class="lbl">After</div><div class="ctn">
+<div style="font-size:11px;margin-bottom:8px">40px 图标按钮 + padding 扩展触控区：</div>
+<div style="display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;margin-right:8px;font-size:12px;font-weight:600;color:#dc2626">✕</div>
+<div style="font-size:11px;color:#059669">min-width/min-height 保证触控区够大</div>
+<div style="margin-top:12px;font-size:11px;margin-bottom:8px">删除统一用 ConfirmDialog：</div>
+<code>&lt;ConfirmDialog v-model="show" @confirm="doDelete"/&gt;</code>
+<div style="font-size:11px;color:#059669;margin-top:4px">全项目统一风格</div>
+</div></div></div>
+</section>
+
+<!-- 8 -->
+<section>
+<h2><span class="tag low">低优</span> 8. DataImportExport 导出无反馈</h2>
+<p class="sub">点"导出商品"按钮，大文件无 loading，失败无错误</p>
+<div class="compare">
+<div class="comp bad"><div class="lbl">Before</div><div class="ctn">
+<button class="btn pri">📥 导出商品</button>
+<button class="btn pri" style="margin-left:8px">📥 导出客户</button>
+<div style="font-size:11px;color:#dc2626;margin-top:8px">点击后无任何反馈，不知道在处理还是失败了</div>
+</div></div>
+<div class="comp good"><div class="lbl">After</div><div class="ctn">
+<button class="btn pri" disabled style="opacity:.6">⏳ 导出中...</button>
+<button class="btn pri" style="margin-left:8px">📥 导出客户</button>
+<div style="font-size:11px;color:#059669;margin-top:8px">导出进行中按钮 disabled + 文字变化；失败时 toast 提示</div>
+</div></div></div>
+</section>
+
+</main>
+<footer>
+基于 Emil 设计工程哲学 + Frontend Design 技能 · 共审查 37 个 .vue 文件 · 输出 8 个优化项
+</footer>
+
+<script>
+// Click the "flash" element in issue 2 to simulate loading
+let fl=false
+document.getElementById('flash')?.addEventListener('click',function(){
+  if(!fl){this.style.opacity='1';fl=true}else{this.style.opacity='0';fl=false}
+})
+</script>
+</body>
+</html> 

@@ -181,7 +181,7 @@ const columns = [
   { key: 'type', label: '类型' },
   { key: 'contact_person', label: '联系人' },
   { key: 'phone', label: '电话' },
-  { key: 'debt', label: '欠款', align: 'right' as const },
+  { key: 'debt', label: '应收', align: 'right' as const },
   { key: 'actions', label: '操作', align: 'right' as const }
 ]
 
