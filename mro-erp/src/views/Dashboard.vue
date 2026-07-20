@@ -75,13 +75,13 @@
     </div>
 
     <template v-else>
-      <!-- Hero 数字 -->
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-        <div class="lg:col-span-4 surface-strong p-5 flex items-center justify-between">
+      <!-- Hero 销售数字 -->
+      <div class="grid grid-cols-1 mb-6">
+        <div class="surface-strong p-5 flex items-center justify-between">
           <div>
             <div class="text-xs font-medium text-primary-400 uppercase tracking-wide">本月销售额</div>
             <div class="text-3xl font-bold text-primary-900 mt-1 tracking-tight">{{ maskMoney(monthlySales) }}</div>
-            <div class="flex items-center gap-3 mt-2 text-xs text-primary-400">
+            <div class="flex items-center gap-2 mt-2 text-xs">
               <span :class="salesChange >= 0 ? 'text-emerald-500' : 'text-red-500'">
                 {{ salesChange >= 0 ? '↑' : '↓' }} {{ Math.abs(salesChange) }}% 较上月
               </span>
@@ -103,7 +103,7 @@
         <!-- 库存周转率 -->
         <div class="surface-strong p-4 kpi-card">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-primary-400 uppercase tracking-wider">库存周转率</span>
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">库存周转率</span>
             <div class="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
               <i class="ri-refresh-line text-amber-500 text-xs"></i>
             </div>
