@@ -14,6 +14,12 @@ export default defineConfig({
         name: '汇友进销存',
         short_name: '汇友',
         description: '汇友工业品进销存管理系统',
+        lang: 'zh-CN',
+        categories: ['business', 'productivity'],
+        screenshots: [
+          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', form_factor: 'wide' },
+          { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png', form_factor: 'narrow' }
+        ],
         theme_color: '#111827',
         background_color: '#f8fafc',
         display: 'standalone',

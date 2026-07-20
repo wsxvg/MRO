@@ -87,22 +87,14 @@ export function useCart() {
     return `毛利 ${margin}%`
   }
 
-  // 渐变色条 + 百分比标签（替代 emoji 五色圆点）
-  function marginGradient(item: { unit_price: number; cost_price: number }) {
-    if (item.cost_price <= 0) return null
-    const margin = item.unit_price > 0 ? (item.unit_price - item.cost_price) / item.unit_price : -1
-    const pct = Math.round(margin * 100)
-    let color: string, bg: string, label: string
-    if (margin < 0) {
-      color = '#dc2626'; bg = '#fef2f2'; label = `${pct}% 赔`
-    } else if (margin < 0.1) {
-      color = '#d97706'; bg = '#fffbeb'; label = `${pct}% 薄`
-    } else if (margin < 0.3) {
-      color = '#2563eb'; bg = '#eff6ff'; label = `${pct}%`
-    } else {
-      color = '#059669'; bg = '#ecfdf5'; label = `${pct}% 优`
-    }
-    return { color, bg, label, pct: Math.max(0, Math.min(100, margin * 100)) }
+  // emoji 圆点 + tooltip（替代色条百分比，保护毛利隐私）
+  function marginEmoji(item: { unit_price: number; cost_price: number }): string {
+    if (item.cost_price <= 0 || item.unit_price <= 0) return '⚫'
+    const margin = (item.unit_price - item.cost_price) / item.unit_price
+    if (margin < 0) return '🔴'
+    if (margin < 0.1) return '🟡'
+    if (margin < 0.3) return '🔵'
+    return '🟢'
   }
 
   return {
@@ -115,8 +107,7 @@ export function useCart() {
     decrement,
     removeItem,
     clearCart,
-    marginColor,
     marginTip,
-    marginGradient,
+    marginEmoji,
   }
 }

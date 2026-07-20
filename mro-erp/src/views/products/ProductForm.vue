@@ -79,18 +79,18 @@
                   <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">¥</span>
                   <input v-model.number="form.cost_price" type="number" step="0.01" class="input pl-7" placeholder="0.00" />
                 </div>
-                <span v-if="form.cost_price_auto" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">暂估</span>
-                <span v-else-if="form.cost_price > 0" class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 whitespace-nowrap">实际</span>
+                <span v-if="form.cost_price_auto" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">暂估</span>
+                <span v-else-if="form.cost_price > 0" class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 flex-shrink-0">实际</span>
               </div>
             </div>
             <div>
               <label class="label">安全库存</label>
-              <div class="flex items-center gap-2">
-                <input v-model.number="form.min_stock" type="number" class="input flex-1" placeholder="0"
+              <div class="flex flex-wrap items-center gap-2">
+                <input v-model.number="form.min_stock" type="number" class="input flex-1 min-w-[80px]" placeholder="0"
                   @input="form.safety_stock_manual = true" />
-                <span v-if="form.safety_stock_manual" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">手动</span>
-                <span v-else class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 whitespace-nowrap">自动</span>
-                <button v-if="form.safety_stock_manual" type="button" class="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap" @click="resetToAuto">恢复自动</button>
+                <span v-if="form.safety_stock_manual" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">手动</span>
+                <span v-else class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 flex-shrink-0">自动</span>
+                <button v-if="form.safety_stock_manual" type="button" class="text-xs text-gray-400 hover:text-gray-600 flex-shrink-0" @click="resetToAuto">恢复自动</button>
               </div>
             </div>
           </div>

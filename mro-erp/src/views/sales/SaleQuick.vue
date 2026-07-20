@@ -11,6 +11,9 @@
         <h1 class="text-xl font-semibold tracking-tight text-gray-900">销售商品</h1>
       </div>
       <div class="ml-auto flex items-center gap-3">
+        <button @click="showMargin = !showMargin" :title="showMargin ? '隐藏毛利指示' : '显示毛利指示'" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors border cursor-pointer" :class="showMargin ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-white text-gray-400 border-gray-200 hover:text-gray-600'">
+          {{ showMargin ? '🟢 毛利' : '⚫ 隐藏' }}
+        </button>
         <SearchableSelect :options="customerOptions" v-model="form.customer_id" placeholder="客户: 默认零售" class="w-44" @update:model-value="onCustomerChange" />
       </div>
     </div>
@@ -36,20 +39,14 @@
         <!-- Cart Items (scrollable) -->
         <div v-if="items.length > 0" class="flex-1 overflow-y-auto px-4 py-2 space-y-1">
           <div v-for="(item, idx) in items" :key="item.product_id" class="flex items-center gap-2 py-2.5 border-b border-gray-50 last:border-0">
-            <!-- 毛利色条 -->
-            <div v-if="marginGradient(item)" class="flex-shrink-0 flex items-center gap-1.5" :title="marginTip(item)">
-              <div class="w-8 h-1.5 rounded-full overflow-hidden" :style="{ background: '#e5e7eb' }">
-                <div class="h-full rounded-full transition-all duration-300" :style="{ width: (marginGradient(item)?.pct ?? 0) + '%', background: marginGradient(item)?.color ?? '#e5e7eb' }"></div>
-              </div>
-              <span class="text-[11px] font-semibold" :style="{ color: marginGradient(item)?.color }">{{ marginGradient(item)?.label }}</span>
-            </div>
-            <span v-else class="w-1.5 h-1.5 rounded-full bg-primary-300 flex-shrink-0" title="未知进价"></span>
+            <!-- 毛利 emoji 圆点 -->
+            <span class="flex-shrink-0 text-xs leading-none" :title="marginTip(item)">{{ showMargin ? marginEmoji(item) : '⚫' }}</span>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">{{ item.product_name }}</p>
               <div class="flex items-center gap-1 mt-0.5">
                 <span class="text-xs text-gray-400">¥</span>
                 <input v-model.number="item.unit_price" type="number" step="0.01" min="0"
-                  class="w-16 text-xs text-gray-600 border-b border-dashed border-gray-300 focus:border-primary-500 focus:outline-none bg-transparent pb-0.5"
+                  class="w-20 text-xs text-gray-600 border-b border-dashed border-gray-300 focus:border-primary-500 focus:outline-none bg-transparent pb-0.5"
                   @input="calcLine(idx)" />
               </div>
             </div>
@@ -57,12 +54,12 @@
               <button class="w-7 h-7 rounded-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" @click="decrement(idx)">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
               </button>
-              <input v-model.number="item.quantity" type="number" min="1" class="w-12 text-center text-sm border border-gray-200 rounded-md py-1.5" @input="calcLine(idx)" />
+              <input v-model.number="item.quantity" type="number" min="1" class="w-14 text-center text-sm border border-gray-200 rounded-md py-1.5" @input="calcLine(idx)" />
               <button class="w-7 h-7 rounded-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" @click="increment(idx)">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
               </button>
             </div>
-            <div class="w-24 text-right">
+            <div class="min-w-[6rem] text-right">
               <p class="text-sm font-semibold text-gray-900">¥{{ (item.line_total || 0).toFixed(2) }}</p>
             </div>
             <button class="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" @click="removeItem(idx)">
@@ -251,7 +248,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useCommonStore } from '@/stores/common'
@@ -268,7 +265,7 @@ const commonStore = useCommonStore()
 
 // Composables
 const cart = useCart()
-const { items, total, itemCount, calcLine, addProduct, increment, decrement, removeItem, clearCart, marginColor, marginTip, marginGradient } = cart
+const { items, total, itemCount, calcLine, addProduct, increment, decrement, removeItem, clearCart, marginTip, marginEmoji } = cart
 const pricing = useCustomerPricing(items, calcLine)
 const { cacheProductPrices, getPriceForProduct, onCustomerChange } = pricing
 const search = useProductSearch()
@@ -278,9 +275,15 @@ const { hoveredProductId, productStocks, showStock, clearStockCache } = stock
 
 // Local state
 const saving = ref(false); const error = ref(''); const success = ref('')
+const showMargin = ref(localStorage.getItem('mro_show_margin') !== 'false')
 const defaultWarehouseId = ref<number | null>(null)
 const customers = ref<Customer[]>([])
 const categories = ref<Category[]>([])
+
+// 持久化毛利显示状态
+watch(showMargin, (val) => {
+  localStorage.setItem('mro_show_margin', String(val))
+})
 
 const form = reactive({
   customer_id: null as string | number | null,

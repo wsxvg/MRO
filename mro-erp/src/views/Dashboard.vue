@@ -76,6 +76,9 @@
           <div class="text-3xl font-bold text-gray-900 mt-1">{{ maskMoney(monthlySales) }}</div>
           <div class="text-xs text-gray-400 mt-1">
             <span :class="salesChange >= 0 ? 'text-emerald-500' : 'text-red-500'">{{ salesChange >= 0 ? '↑' : '↓' }} {{ Math.abs(salesChange) }}%</span> 较上月
+            <span class="mx-2 text-gray-200">|</span>
+            毛利 <span :class="profitRate >= 20 ? 'text-emerald-500' : profitRate >= 0 ? 'text-amber-500' : 'text-red-500'" class="font-semibold">{{ maskMoney(monthlyProfit) }}</span>
+            <span class="text-gray-400"> ({{ profitRate.toFixed(1) }}%)</span>
           </div>
         </div>
         <div class="flex gap-2">
@@ -158,6 +161,9 @@
             <div class="flex items-center gap-3">
               <span class="flex items-center gap-1.5 text-xs text-gray-400">
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>销售额
+              </span>
+              <span class="flex items-center gap-1.5 text-xs text-gray-400">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>毛利
               </span>
             </div>
           </div>
@@ -441,6 +447,8 @@ const selectedPeriod = ref<'thisMonth' | 'lastMonth' | 'thisYear'>('thisMonth')
 
 // KPI data
 const monthlySales = ref(0)
+const monthlyProfit = ref(0)
+const profitRate = ref(0)
 const salesChange = ref(0)
 const turnoverRate = ref(0)
 const lowStockCount = ref(0)
@@ -549,29 +557,50 @@ function getPeriodRange() {
 }
 
 async function fetchTrendData(dateFrom: string, dateTo: string) {
-  const res = await fetchSalesSummary({
-    date_from: dateFrom,
-    date_to: dateTo
-  })
+  const [salesRes, profitRes] = await Promise.all([
+    fetchSalesSummary({ date_from: dateFrom, date_to: dateTo }),
+    fetchProfitReport({ date_from: dateFrom, date_to: dateTo })
+  ])
 
-  if (!res.data) return []
+  // Aggregate profit by same period
+  const profitByPeriod = new Map<string, number>()
+  if (profitRes.data) {
+    for (const row of profitRes.data) {
+      const key = selectedPeriod.value === 'thisYear'
+        ? row.created_at.slice(0, 7)
+        : row.created_at.slice(0, 10)
+      profitByPeriod.set(key, (profitByPeriod.get(key) ?? 0) + (row.gross_profit || 0))
+    }
+  }
+
+  if (!salesRes.data) return { data: [], totalProfit: 0, totalSales: 0 }
+
+  let result: any[]
+  let totalSales = 0
 
   if (selectedPeriod.value === 'thisYear') {
     const monthMap = new Map<string, number>()
-    for (const row of res.data) {
+    for (const row of salesRes.data) {
       const month = row.date.slice(0, 7)
       monthMap.set(month, (monthMap.get(month) ?? 0) + Number(row.total_amount))
     }
-    return Array.from(monthMap.entries()).map(([month, sales_amount]) => ({
+    result = Array.from(monthMap.entries()).map(([month, sales_amount]) => ({
       label: month.slice(5) + '月',
-      sales_amount
+      sales_amount,
+      profit_amount: profitByPeriod.get(month) ?? 0
     }))
+    totalSales = Array.from(monthMap.values()).reduce((s, v) => s + v, 0)
+  } else {
+    result = salesRes.data.map(row => ({
+      label: row.date.slice(5),
+      sales_amount: row.total_amount,
+      profit_amount: profitByPeriod.get(row.date.slice(0, 10)) ?? 0
+    }))
+    totalSales = salesRes.data.reduce((s, r) => s + Number(r.total_amount), 0)
   }
 
-  return res.data.map(row => ({
-    label: row.date.slice(5),
-    sales_amount: row.total_amount
-  }))
+  const totalProfit = Array.from(profitByPeriod.values()).reduce((s, v) => s + v, 0)
+  return { data: result, totalProfit, totalSales }
 }
 
 /** Calculate month-over-month change, falling back if current month is zero. */
@@ -639,7 +668,7 @@ function renderTrendChart(chart: echarts.ECharts, data: any[]) {
     },
     series: [
       {
-        name: '销售',
+        name: '销售额',
         type: 'line',
         data: data.map((d: any) => d.sales_amount),
         smooth: true,
@@ -653,6 +682,16 @@ function renderTrendChart(chart: echarts.ECharts, data: any[]) {
             { offset: 1, color: '#34d39905' }
           ])
         }
+      },
+      {
+        name: '毛利',
+        type: 'line',
+        data: data.map((d: any) => d.profit_amount || 0),
+        smooth: true,
+        symbol: 'diamond',
+        symbolSize: 6,
+        lineStyle: { color: '#60a5fa', width: 2, type: 'dashed' },
+        itemStyle: { color: '#60a5fa' }
       }
     ]
   })
@@ -736,12 +775,16 @@ async function loadData(force = false) {
       turnoverRate.value = turnoverRes.data.rate
     }
 
-    if (trendRes.length > 0) {
-      trendData.value = trendRes
-      salesChange.value = calcChange(trendRes.map((d: any) => d.sales_amount))
+    if (trendRes.data?.length > 0) {
+      trendData.value = trendRes.data
+      salesChange.value = calcChange(trendRes.data.map((d: any) => d.sales_amount))
+      monthlyProfit.value = trendRes.totalProfit || 0
+      profitRate.value = trendRes.totalSales > 0 ? (trendRes.totalProfit / trendRes.totalSales * 100) : 0
     } else {
       trendData.value = []
       salesChange.value = 0
+      monthlyProfit.value = 0
+      profitRate.value = 0
     }
 
     if (inventoryRes.data) {

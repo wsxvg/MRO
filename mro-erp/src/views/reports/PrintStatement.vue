@@ -110,8 +110,8 @@ function doPrint() {
     padding: 10mm !important;
   }
   @page {
-    size: A5 landscape;
-    margin: 10mm;
+    size: A4;
+    margin: 12mm;
   }
 }
 </style>

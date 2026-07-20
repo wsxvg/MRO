@@ -13,7 +13,7 @@
       </div>
 
       <!-- Filter selects -->
-      <div v-for="filter in filters" :key="filter.key" class="w-40">
+      <div v-for="filter in filters" :key="filter.key" class="min-w-[160px]">
         <select
           :value="filter.value"
           @change="$emit('filter-change', { key: filter.key, value: ($event.target as HTMLSelectElement).value })"

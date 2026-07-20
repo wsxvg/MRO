@@ -56,7 +56,7 @@
         <div
           v-if="open"
           ref="dropdownRef"
-          class="fixed z-[100] bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden"
+          class="fixed z-40 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden"
           :style="dropdownStyle"
         >
           <!-- No results -->
