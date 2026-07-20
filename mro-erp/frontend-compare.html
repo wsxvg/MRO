@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>汇友进销存 - 前端优化前后对比</title>
+<style>
+:root {
+  --bg: #f0f2f5;
+  --card: #fff;
+  --text: #1a1a2e;
+  --text-secondary: #6b7280;
+  --border: #e5e7eb;
+  --accent-old: #111827;
+  --accent-new: #1e40af;
+  --success: #059669;
+  --warn: #d97706;
+  --danger: #dc2626;
+  --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+header {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 32px 40px;
+  border-bottom: 3px solid #3b82f6;
+}
+header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.6px; }
+header p { font-size: 14px; color: #94a3b8; margin-top: 6px; }
+main { max-width: 1400px; margin: 0 auto; padding: 32px 24px; }
+section {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+section h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+section h2 .num { display: inline-flex; width: 28px; height: 28px; border-radius: 8px; background: #eff6ff; color: #1e40af; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+section > p.sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.compare-card { border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+.compare-card .label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; padding: 8px 14px; text-transform: uppercase; }
+.compare-card.before .label { background: #fef2f2; color: #dc2626; }
+.compare-card.after .label { background: #f0fdf4; color: #16a34a; }
+.compare-card .content { padding: 20px; }
+.btn-old { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; background: #111827; color: #fff; transition: all 150ms ease-in-out; }
+.btn-new { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; background: #1e40af; color: #fff; box-shadow: 0 2px 8px rgba(30,64,175,0.18); transition: transform 160ms ease-out, box-shadow 160ms ease-out, background 160ms ease-out; }
+.btn-new:active { transform: scale(0.97); }
+.btn-new:hover { background: #1e3a8a; box-shadow: 0 4px 14px rgba(30,64,175,0.25); }
+.btn-secondary-old { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 500; border: 1px solid #e5e7eb; cursor: pointer; background: #fff; color: #374151; transition: all 150ms ease-in-out; }
+.btn-secondary-new { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 500; border: 1px solid #e5e7eb; cursor: pointer; background: #fff; color: #374151; transition: border-color 160ms ease-out, background 160ms ease-out; }
+.btn-secondary-new:hover { border-color: #bfdbfe; background: #f8fafc; }
+.btn-secondary-new:active { transform: scale(0.97); background: #f1f5f9; }
+.input-old { width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #e5e7eb; font-size: 14px; outline: none; background: #f9fafb; transition: all 150ms ease-in-out; }
+.input-old:focus { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.12); background: #fff; }
+.input-new { width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #e5e7eb; font-size: 14px; outline: none; background: #fff; transition: border-color 160ms ease-out, box-shadow 160ms ease-out; }
+.input-new:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.kpi-old { padding: 16px; border-radius: 14px; border: 1px solid #f1f5f9; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+.kpi-old .icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+.kpi-old .value { font-size: 24px; font-weight: 700; }
+.kpi-old .sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.kpi-new { padding: 16px; border-radius: 14px; border: 1px solid #e5e7eb; background: #fff; display: flex; flex-direction: column; }
+.kpi-new .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.kpi-new .icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.kpi-new .value { font-size: 28px; font-weight: 700; line-height: 1.1; }
+.kpi-new .sub { font-size: 12px; color: #6b7280; margin-top: 4px; }
+.hero-num { grid-column: 1/-1; padding: 28px 32px; border-radius: 16px; background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; display: flex; align-items: flex-end; justify-content: space-between; }
+.hero-num .big { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; }
+.hero-num .label-hero { font-size: 13px; color: #94a3b8; }
+.table-old { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table-old th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid #f3f4f6; }
+.table-old td { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; }
+.table-new { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table-new th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 2px solid #e2e8f0; }
+.table-new td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
+.table-new tbody tr { transition: background 120ms; }
+.table-new tbody tr:hover { background: #f8fafc; }
+.badge-old { display: inline-flex; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; background: #f3f4f6; color: #6b7280; }
+.badge-new { display: inline-flex; padding: 2px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; }
+.badge-new.good { background: #ecfdf5; color: #059669; }
+.badge-new.warn { background: #fffbeb; color: #d97706; }
+.margin-bar { width: 48px; height: 6px; border-radius: 3px; background: linear-gradient(to right, #dc2626, #d97706, #16a34a); }
+.margin-label { font-size: 12px; font-weight: 600; }
+.legend { display: flex; gap: 20px; font-size: 12px; color: #6b7280; margin-top: 40px; padding: 16px; background: #fafafa; border-radius: 10px; }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+@media (max-width: 768px) { .compare-grid { grid-template-columns: 1fr; } main { padding: 16px; } section { padding: 20px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>前端优化方案 前后对比</h1>
+  <p>基于 Emil 设计工程规范 + Frontend Design 工业实用主义方向</p>
+</header>
+<main>
+
+<section>
+  <h2><span class="num">1</span> 色彩系统精炼</h2>
+  <p class="sub">primary gray-900 → slate-800 + 蓝色 accent（#1e40af）</p>
+  <div class="compare-grid">
+    <div class="compare-card before"><div class="label">Before：纯灰</div><div class="content"><button class="btn-old">管理员登录</button><div style="margin-top:12px"><span class="badge-old">已确认</span> <span class="badge-old" style="margin-left:6px">待处理</span></div><div style="margin-top:10px;font-size:12px;color:#9ca3af">所有强调色都是灰色，缺少层次</div></div></div>
+    <div class="compare-card after"><div class="label">After：Slate + Blue accent</div><div class="content"><button class="btn-new">管理员登录</button><div style="margin-top:12px"><span class="badge-new good">已确认</span> <span class="badge-new warn" style="margin-left:6px">待处理</span></div><div style="margin-top:10px;font-size:12px;color:#6b7280">slate工业感 + 蓝色accent用于可点击元素</div></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">2</span> 按钮按压反馈 + 禁用随机动效</h2>
+  <p class="sub">Emil原则：transition:all→指定属性、:active scale(0.97)、禁用ease-in</p>
+  <div class="compare-grid">
+    <div class="compare-card before"><div class="label">Before：transition-all + 无active</div><div class="content"><button class="btn-old">确认提交</button><button class="btn-secondary-old" style="margin-left:10px">取消</button><div style="margin-top:10px;font-size:11px;color:#9ca3af;font-family:monospace">transition: all 150ms ease-in-out<br>(没有 :active)</div></div></div>
+    <div class="compare-card after"><div class="label">After：指定属性+scale(0.97)</div><div class="content"><button class="btn-new">确认提交</button><button class="btn-secondary-new" style="margin-left:10px">取消</button><div style="margin-top:10px;font-size:11px;color:#16a34a;font-family:monospace">transform 160ms ease-out<br>:active { transform: scale(0.97) }</div><div style="margin-top:4px;font-size:11px;color:#16a34a">↳ 点击按钮试试看</div></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">3</span> 输入框聚焦态增强</h2>
+  <p class="sub">ring opacity提升 + border颜色加深</p>
+  <div class="compare-grid">
+    <div class="compare-card before"><div class="label">Before</div><div class="content"><input class="input-old" placeholder="搜索商品名称..." autofocus /></div></div>
+    <div class="compare-card after"><div class="label">After</div><div class="content"><input class="input-new" placeholder="搜索商品名称..." autofocus /></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">4</span> 仪表板布局：4列 → Hero大字+3KPI+快捷操作</h2>
+  <p class="sub">顶部大字形成视觉重心；快捷操作面板替代第4个KPI</p>
+  <div class="compare-card before" style="margin-bottom:16px"><div class="label">Before：4列平平无奇</div><div class="content" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+    <div class="kpi-old"><div class="icon" style="background:#ecfdf5">💵</div><div class="value">¥12,800</div><div class="sub">本月销售额</div></div>
+    <div class="kpi-old"><div class="icon" style="background:#fffbeb">🔄</div><div class="value">2.3x</div><div class="sub">库存周转率</div></div>
+    <div class="kpi-old"><div class="icon" style="background:#fef2f2">⚠️</div><div class="value">8</div><div class="sub">低库存预警</div></div>
+    <div class="kpi-old"><div class="icon" style="background:#fff7ed">💰</div><div class="value">¥3,200</div><div class="sub">未收款总额</div></div>
+  </div></div>
+  <div class="compare-card after"><div class="label">After：Hero大字+3KPI+快捷操作</div><div class="content" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+    <div class="hero-num"><div><div class="label-hero">本月销售额</div><div class="big">¥12,800</div><div style="font-size:12px;color:#22c55e;margin-top:4px">↑ 12% 较上月</div></div><div style="font-size:13px;color:#64748b">今日 +¥1,240 · 15笔</div></div>
+    <div class="kpi-new"><div class="row"><span style="font-size:12px;color:#64748b">库存周转率</span><span class="icon" style="background:#fffbeb">🔄</span></div><div class="value">2.3<span style="font-size:14px;font-weight:400;color:#9ca3af">x</span></div><div class="sub">销售成本 / 平均库存</div></div>
+    <div class="kpi-new"><div class="row"><span style="font-size:12px;color:#64748b">低库存预警</span><span class="icon" style="background:#fef2f2">⚠️</span></div><div class="value">8</div><div class="sub">需及时补货 <span style="color:#3b82f6;cursor:pointer">去进货→</span></div></div>
+    <div class="kpi-new" style="border:2px dashed #e5e7eb;justify-content:center;align-items:center;gap:10px;background:#fafafa"><button style="background:#1e40af;color:#fff;border:none;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">⚡ 快速开单</button><button style="background:#fff;color:#374151;border:1px solid #e5e7eb;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer">🔍 查库存</button></div>
+  </div></div>
+</section>
+
+<section>
+  <h2><span class="num">5</span> 表格行hover高亮+表头强化</h2>
+  <p class="sub">hover:bg-gray-50 + 表头border加粗，提高扫读效率</p>
+  <div class="compare-grid">
+    <div class="compare-card before"><div class="label">Before：无hover</div><div class="content"><table class="table-old"><thead><tr><th>商品名称</th><th>规格</th><th>售价</th><th>库存</th></tr></thead><tbody><tr><td>不锈钢螺丝 M6</td><td>M6x30</td><td>¥0.35</td><td>1,200</td></tr><tr><td>膨胀管 8mm</td><td>8mmx40mm</td><td>¥0.08</td><td>5,000</td></tr><tr><td>镀锌垫圈</td><td>M8</td><td>¥0.15</td><td>800</td></tr></tbody></table><div style="margin-top:8px;font-size:11px;color:#9ca3af">↓ 划过行无反馈</div></div></div>
+    <div class="compare-card after"><div class="label">After：有hover背景</div><div class="content"><table class="table-new"><thead><tr><th>商品名称</th><th>规格</th><th>售价</th><th>库存</th></tr></thead><tbody><tr><td>不锈钢螺丝 M6</td><td>M6x30</td><td>¥0.35</td><td>1,200</td></tr><tr><td>膨胀管 8mm</td><td>8mmx40mm</td><td>¥0.08</td><td>5,000</td></tr><tr><td>镀锌垫圈</td><td>M8</td><td>¥0.15</td><td>800</td></tr></tbody></table><div style="margin-top:8px;font-size:11px;color:#16a34a">↓ 划过时有淡灰背景</div></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">6</span> SaleQuick 毛利率：Emoji→渐变色条</h2>
+  <p class="sub">🔵🟢🟡🔴💀 虽实用但不专业，改为渐变色条+百分比</p>
+  <div class="compare-grid">
+    <div class="compare-card before"><div class="label">Before：Emoji五色</div><div class="content"><div style="margin-bottom:6px">🔵🟢 <span style="font-size:12px;color:#6b7280">高利润</span></div><div style="margin-bottom:6px">🟡 <span style="font-size:12px;color:#6b7280">中等</span></div><div style="margin-bottom:6px">🔴 <span style="font-size:12px;color:#6b7280">薄利</span></div><div>💀 <span style="font-size:12px;color:#dc2626">赔钱</span></div><div style="margin-top:10px;font-size:11px;color:#9ca3af">emoji靠颜色暗示，表达模糊</div></div></div>
+    <div class="compare-card after"><div class="label">After：渐变色条+百分比</div><div class="content"><div style="margin-bottom:8px;display:flex;align-items:center;gap:8px"><div class="margin-bar" style="width:60px;height:8px;background:linear-gradient(to right,#16a34a 80%,transparent 80%)"></div><span class="margin-label" style="color:#16a34a">35% <span style="font-weight:400;color:#6b7280">健康</span></span></div><div style="margin-bottom:8px;display:flex;align-items:center;gap:8px"><div class="margin-bar" style="width:60px;height:8px;background:linear-gradient(to right,#d97706 45%,transparent 45%)"></div><span class="margin-label" style="color:#d97706">8% <span style="font-weight:400;color:#6b7280">薄利</span></span></div><div style="display:flex;align-items:center;gap:8px"><div class="margin-bar" style="width:60px;height:8px;background:linear-gradient(to right,#dc2626 20%,transparent 20%)"></div><span class="margin-label" style="color:#dc2626">-2% <span style="font-weight:400;color:#6b7280">赔钱</span></span></div><div style="margin-top:10px;font-size:11px;color:#16a34a">渐变色条+精确数字，一眼看出健康度</div></div></div>
+  </div>
+</section>
+
+<footer class="legend">
+  <span><span class="dot" style="background:#16a34a"></span> 已实现（Emil动效规范已提交）</span>
+  <span><span class="dot" style="background:#d97706"></span> 待实施（本页6个方案）</span>
+  <span><span class="dot" style="background:#6b7280"></span> 不影响现有功能</span>
+</footer>
+
+</main>
+</body>
+</html> 
