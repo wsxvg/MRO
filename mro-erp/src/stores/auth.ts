@@ -84,43 +84,24 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function changePassword(answer: string, currentPassword: string, newPassword: string) {
+  // 已登录状态下修改密码（需旧密码验证身份 + 确认新密码）
+  async function changePassword(oldPassword: string, newPassword: string) {
     loading.value = true
     try {
-      // 从数据库获取安全答案（降级到硬编码值）
-      let correctAnswer = DEFAULT_SECURITY_ANSWER
-      try {
-        const { data: config } = await supabase
-          .from('app_config')
-          .select('value')
-          .eq('key', 'security_answer')
-          .maybeSingle()
-        if (config?.value) {
-          correctAnswer = config.value
-        }
-      } catch {
-        // app_config 表不存在，使用默认值
+      if (!oldPassword || !newPassword || newPassword.length < 3) {
+        return { success: false as const, error: '新密码至少3位字符' }
       }
 
-      if (answer.trim() !== correctAnswer) {
-        return { success: false as const, error: '安全问题回答错误' }
-      }
-
-      if (!currentPassword || !newPassword || newPassword.length < 3) {
-        return { success: false as const, error: '当前密码和新密码至少3位字符' }
-      }
-
-      // 先登录获取会话，才能调用 updateUser 修改密码
+      // 用旧密码登录验证身份（同时刷新 session）
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: DEFAULT_EMAIL,
-        password: currentPassword,
+        password: oldPassword,
       })
       if (loginError) {
         return { success: false as const, error: '当前密码错误' }
       }
 
       const { error } = await supabase.auth.updateUser({ password: newPassword })
-
       if (error) {
         return { success: false as const, error: `密码修改失败: ${error.message}` }
       }

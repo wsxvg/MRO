@@ -209,83 +209,9 @@
             </svg>
             {{ guestLoading ? '加载中...' : '游客浏览（仅查看商品）' }}
           </button>
-
-          <div class="flex items-center justify-end mt-3 text-sm">
-            <button type="button" @click="openChangePassword" class="text-gray-400 hover:text-gray-600 transition-colors">
-              忘记密码？
-            </button>
-          </div>
         </div>
       </div>
     </div>
-
-    <!-- Change Password Dialog -->
-    <BaseModal v-model="showChangePassword" title="修改密码">
-      <div class="text-center mb-4">
-        <p class="text-sm text-gray-500">请先验证身份信息</p>
-      </div>
-
-      <form @submit.prevent="handleChangePassword" class="space-y-4">
-        <!-- Security Question -->
-        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <p class="text-xs font-medium text-amber-700 mb-1">安全问题验证</p>
-              <p class="text-sm text-amber-800">{{ SECURITY_QUESTION }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <label for="cp-answer" class="text-sm font-medium text-gray-700">安全问题答案</label>
-          <input id="cp-answer" v-model="cpAnswer" type="text" placeholder="输入安全问题答案" required class="input" />
-        </div>
-
-        <div class="space-y-1.5">
-          <label for="cp-current" class="text-sm font-medium text-gray-700">当前密码</label>
-          <input id="cp-current" v-model="cpCurrentPassword" type="password" placeholder="输入当前密码" required class="input" />
-        </div>
-
-        <div class="space-y-1.5">
-          <label for="cp-new" class="text-sm font-medium text-gray-700">新密码</label>
-          <input id="cp-new" v-model="cpNewPassword" type="password" placeholder="输入新密码（至少 3 位）" required minlength="3" class="input" />
-        </div>
-
-        <!-- Messages -->
-        <Transition name="fade-slide">
-          <div v-if="cpError" class="p-3.5 text-sm bg-red-50 border border-red-200 text-red-600 rounded-xl flex items-start gap-2.5">
-            <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{{ cpError }}</span>
-          </div>
-        </Transition>
-        <Transition name="fade-slide">
-          <div v-if="cpSuccess" class="p-3.5 text-sm bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-xl flex items-start gap-2.5">
-            <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{{ cpSuccess }}</span>
-          </div>
-        </Transition>
-      </form>
-
-      <template #footer>
-        <div class="flex gap-3 pt-1">
-          <button type="button" @click="closeChangePassword" class="flex-1 h-10 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">取消</button>
-          <button type="submit" :disabled="loading" class="flex-1 h-10 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 active:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 flex items-center justify-center gap-2" @click="handleChangePassword">
-            <svg v-if="loading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            确认修改
-          </button>
-        </div>
-      </template>
-    </BaseModal>
   </div>
 </template>
 
@@ -293,15 +219,12 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import BaseModal from '@/components/BaseModal.vue'
 import gsap from 'gsap'
 
 const router = useRouter()
 const auth = useAuthStore()
 
-const SECURITY_QUESTION = auth.securityQuestion
-
-// 改密码成功后已登录，自动跳转
+// 管理员登录成功后自动跳转仪表板
 watch(() => auth.loggedIn, (val) => {
   if (val && router.currentRoute.value.path === '/login') {
     router.push('/dashboard')
@@ -315,14 +238,6 @@ const loading = ref(false)
 const guestLoading = ref(false)
 const showPassword = ref(false)
 const isFieldFocused = ref('')
-
-// Change password dialog
-const showChangePassword = ref(false)
-const cpAnswer = ref('')
-const cpCurrentPassword = ref('')
-const cpNewPassword = ref('')
-const cpError = ref('')
-const cpSuccess = ref('')
 
 // === 3D Scene - Mouse Tracking ===
 const sceneRef = ref<HTMLDivElement | null>(null)
@@ -432,44 +347,6 @@ async function handleGuestLogin() {
   }
 }
 
-function openChangePassword() {
-  showChangePassword.value = true
-  cpAnswer.value = ''
-  cpCurrentPassword.value = ''
-  cpNewPassword.value = ''
-  cpError.value = ''
-  cpSuccess.value = ''
-}
-
-function closeChangePassword() {
-  showChangePassword.value = false
-  cpAnswer.value = ''
-  cpCurrentPassword.value = ''
-  cpNewPassword.value = ''
-  cpError.value = ''
-  cpSuccess.value = ''
-}
-
-async function handleChangePassword() {
-  cpError.value = ''
-  cpSuccess.value = ''
-  loading.value = true
-  try {
-    const result = await auth.changePassword(
-      cpAnswer.value,
-      cpCurrentPassword.value,
-      cpNewPassword.value
-    )
-    if (result.success) {
-      cpSuccess.value = result.message || '密码修改成功'
-      setTimeout(() => closeChangePassword(), 1500)
-    } else {
-      cpError.value = result.error || '修改失败'
-    }
-  } finally {
-    loading.value = false
-  }
-}
 </script>
 
 <style scoped>

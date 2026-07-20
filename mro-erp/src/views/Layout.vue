@@ -91,6 +91,9 @@
             <span class="block text-sm text-gray-700 font-medium">{{ auth.isGuest ? '游客' : '管理员' }}</span>
             <span class="block text-[11px] text-gray-400">{{ auth.isGuest ? '仅浏览' : '本地账号' }}</span>
           </div>
+          <button v-if="!auth.isGuest" @click="showChangePwd = true" title="修改密码" class="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+          </button>
         </div>
         <div v-show="sidebarCollapsed" class="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm cursor-default">
           H
@@ -211,6 +214,8 @@
         </router-view>
       </main>
     </div>
+
+    <ChangePasswordModal v-model="showChangePwd" />
   </div>
 </template>
 
@@ -218,6 +223,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import ChangePasswordModal from '@/components/ChangePasswordModal.vue'
 import { fetchSalesOrders } from '@/api'
 import { fetchPurchaseOrders } from '@/api/purchaseOrders'
 import gsap from 'gsap'
@@ -253,6 +259,7 @@ const auth = useAuthStore()
 
 const sidebarOpen = ref(false)
 const sidebarCollapsed = ref(localStorage.getItem('mro_sidebar_collapsed') === 'true')
+const showChangePwd = ref(false)
 const currentTime = ref('')
 let timer: ReturnType<typeof setInterval> | undefined
 
