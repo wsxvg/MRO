@@ -1,0 +1,20 @@
+node_modules/
+dist/
+
+.env
+*.log
+.sisyphus/
+.tmp/
+.codegraph/
+*.xlsx
+
+.vite/
+
+mro-erp/scripts/create-user-sql.cjs
+mro-erp/scripts/create-auth-user.mjs
+mro-erp/scripts/test-smoke.cjs
+mro-erp/scripts/import-products.cjs
+mro-erp/scripts/test-money.cjs
+mro-erp/scripts/seed-categories-warehouses.mjs
+
+# Note: the 6 scripts above contain hardcoded secrets and are not committed; use env vars to re-enable

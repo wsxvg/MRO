@@ -1,0 +1,386 @@
+<template>
+  <div class="min-h-screen grid lg:grid-cols-2">
+    <!-- Left Branding Panel -->
+    <div class="relative hidden lg:flex flex-col justify-between bg-gradient-to-br from-slate-950 via-slate-900 to-primary-950 p-12 overflow-hidden">
+      <!-- Decorative background mesh -->
+      <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0); background-size: 24px 24px;" />
+
+      <!-- Decorative blurred orbs -->
+      <div class="absolute top-1/3 -left-16 size-80 bg-primary-500/10 rounded-full blur-[100px]" />
+      <div class="absolute bottom-1/3 -right-16 size-96 bg-sky-500/5 rounded-full blur-[120px]" />
+
+      <!-- Industrial warehouse geometric elements -->
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+        <div class="relative w-[460px] h-[480px]" ref="sceneRef">
+          <!-- Back row - tall structures -->
+          <div
+            v-for="(block, i) in backBlocks"
+            :key="'back-' + i"
+            class="absolute bottom-0 transition-all duration-1000 ease-out rounded-sm"
+            :style="{
+              left: block.left + 'px',
+              width: block.width + 'px',
+              height: block.height + 'px',
+              backgroundColor: block.color,
+              opacity: block.opacity,
+              transform: `translate(${blockOffsetX * block.depth}px, ${blockOffsetY * block.depth * 0.3}px)`,
+              zIndex: block.zIndex,
+            }"
+          />
+
+          <!-- Middle row - primary structures -->
+          <div
+            v-for="(block, i) in midBlocks"
+            :key="'mid-' + i"
+            class="absolute bottom-0 transition-all duration-700 ease-out rounded-sm"
+            :style="{
+              left: block.left + 'px',
+              width: block.width + 'px',
+              height: block.height + 'px',
+              backgroundColor: block.color,
+              opacity: block.opacity,
+              transform: `translate(${blockOffsetX * block.depth}px, ${blockOffsetY * block.depth * 0.3}px)`,
+              zIndex: block.zIndex,
+            }"
+          >
+            <!-- Shelf lines on some blocks -->
+            <div
+              v-for="(line, li) in block.shelves || []"
+              :key="'shelf-' + li"
+              class="absolute left-[10%] right-[10%] h-[1px] bg-white/10"
+              :style="{ top: line + '%' }"
+            />
+          </div>
+
+          <!-- Front row - accent blocks -->
+          <div
+            v-for="(block, i) in frontBlocks"
+            :key="'front-' + i"
+            class="absolute bottom-0 transition-all duration-500 ease-out rounded-sm"
+            :style="{
+              left: block.left + 'px',
+              width: block.width + 'px',
+              height: block.height + 'px',
+              backgroundColor: block.color,
+              opacity: block.opacity,
+              transform: `translate(${blockOffsetX * block.depth}px, ${blockOffsetY * block.depth * 0.3}px)`,
+              zIndex: block.zIndex,
+            }"
+          />
+
+          <!-- Floating particle dots -->
+          <div
+            v-for="(dot, i) in particles"
+            :key="'dot-' + i"
+            class="absolute rounded-full bg-white transition-all duration-[2000ms] ease-out"
+            :style="{
+              left: dot.left + '%',
+              top: dot.top + '%',
+              width: dot.size + 'px',
+              height: dot.size + 'px',
+              opacity: dot.opacity,
+              transform: `translate(${blockOffsetX * 0.5}px, ${blockOffsetY * 0.5}px)`,
+            }"
+          />
+        </div>
+      </div>
+
+      <!-- Top branding -->
+      <div class="relative z-20">
+        <div class="flex items-center gap-3">
+          <div class="size-10 rounded-xl bg-white/5 backdrop-blur border border-white/10 flex items-center justify-center">
+            <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <!-- Outer gear ring -->
+              <circle cx="12" cy="12" r="5.5" stroke-dasharray="2 3" />
+              <!-- Inner bearing ring -->
+              <circle cx="12" cy="12" r="3" stroke-dasharray="1.5 2" />
+              <!-- Center dot -->
+              <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+              <!-- Cross spokes -->
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke-linecap="round" />
+              <!-- Diagonal bolt holes -->
+              <circle cx="7.76" cy="7.76" r="0.8" />
+              <circle cx="16.24" cy="7.76" r="0.8" />
+              <circle cx="7.76" cy="16.24" r="0.8" />
+              <circle cx="16.24" cy="16.24" r="0.8" />
+            </svg>
+          </div>
+          <span class="text-white/90 text-lg font-semibold tracking-tight">汇友进销存</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Login Panel -->
+    <div class="flex items-center justify-center p-6 sm:p-10 bg-white relative">
+      <!-- Subtle background pattern -->
+      <div class="absolute inset-0 opacity-[0.02]" style="background-image: radial-gradient(circle at 1px 1px, #111827 1px, transparent 0); background-size: 32px 32px;" />
+
+      <div class="w-full max-w-sm relative z-10" ref="formRef">
+        <!-- Mobile header -->
+        <div class="lg:hidden flex flex-col items-center gap-3 mb-12">
+          <div class="size-12 rounded-xl bg-primary-50 flex items-center justify-center">
+            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          </div>
+          <h1 class="text-xl font-bold text-gray-900">汇友进销存系统</h1>
+          <p class="text-sm text-gray-500">工业品贸易管理系统</p>
+        </div>
+
+        <!-- Form Header -->
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-gray-900 tracking-tight">欢迎回来</h1>
+          <p class="text-sm text-gray-500 mt-1.5">请登录您的账户</p>
+        </div>
+
+        <!-- Error Alert -->
+        <Transition name="fade-slide">
+          <div v-if="error" class="mb-5 p-3.5 text-sm bg-red-50 border border-red-200 text-red-600 rounded-xl flex items-start gap-2.5">
+            <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{{ error }}</span>
+          </div>
+        </Transition>
+
+        <!-- Login Form -->
+        <form @submit.prevent="handleLogin" class="space-y-5">
+          <div class="space-y-1.5">
+            <label for="password" class="text-sm font-medium text-gray-700">管理员密码</label>
+            <div class="relative">
+              <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <input
+                id="password"
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="请输入管理员密码"
+                autocomplete="current-password"
+                required
+                class="w-full h-11 pl-10 pr-10 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] transition-all duration-200"
+                @focus="isFieldFocused = 'password'"
+                @blur="isFieldFocused = ''"
+              />
+              <button
+                type="button"
+                @click="showPassword = !showPassword"
+                class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                tabindex="-1"
+              >
+                <svg v-if="!showPassword" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            :disabled="loading"
+            class="w-full h-11 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 active:bg-gray-950 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
+          >
+            <svg v-if="loading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            {{ loading ? '登录中...' : '管理员登录' }}
+          </button>
+        </form>
+
+        <!-- Guest login -->
+        <div class="mt-4 pt-4 border-t border-gray-100">
+          <p class="text-center text-xs text-gray-400 mb-3">或</p>
+          <button
+            type="button"
+            :disabled="guestLoading"
+            @click="handleGuestLogin"
+            class="w-full h-10 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 flex items-center justify-center gap-2 border border-gray-200"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
+            {{ guestLoading ? '加载中...' : '游客浏览（仅查看商品）' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import gsap from 'gsap'
+
+const router = useRouter()
+const auth = useAuthStore()
+
+// 管理员登录成功后自动跳转仪表板
+watch(() => auth.loggedIn, (val) => {
+  if (val && router.currentRoute.value.path === '/login') {
+    router.push('/dashboard')
+  }
+})
+
+// Form state
+const password = ref('')
+const error = ref('')
+const loading = ref(false)
+const guestLoading = ref(false)
+const showPassword = ref(false)
+const isFieldFocused = ref('')
+
+// === 3D Scene - Mouse Tracking ===
+const sceneRef = ref<HTMLDivElement | null>(null)
+const formRef = ref<HTMLDivElement | null>(null)
+const mouseX = ref(0)
+const mouseY = ref(0)
+const blockOffsetX = ref(0)
+const blockOffsetY = ref(0)
+
+// Warehouse block definitions
+const backBlocks = [
+  { left: 40, width: 90, height: 240, color: 'rgba(59,130,246,0.08)', opacity: 0.8, depth: 0.6, zIndex: 1, shelves: [30, 55, 80] },
+  { left: 300, width: 110, height: 280, color: 'rgba(59,130,246,0.06)', opacity: 0.7, depth: 0.5, zIndex: 1, shelves: [25, 50, 75] },
+  { left: 160, width: 70, height: 200, color: 'rgba(96,165,250,0.07)', opacity: 0.6, depth: 0.7, zIndex: 1 },
+]
+
+const midBlocks = [
+  { left: 20, width: 120, height: 180, color: 'rgba(59,130,246,0.12)', opacity: 0.9, depth: 0.3, zIndex: 2, shelves: [35, 65] },
+  { left: 250, width: 130, height: 220, color: 'rgba(37,99,235,0.1)', opacity: 0.85, depth: 0.2, zIndex: 2, shelves: [30, 60] },
+  { left: 140, width: 60, height: 150, color: 'rgba(96,165,250,0.09)', opacity: 0.7, depth: 0.4, zIndex: 2 },
+]
+
+const frontBlocks = [
+  { left: 50, width: 100, height: 130, color: 'rgba(59,130,246,0.18)', opacity: 0.95, depth: 0, zIndex: 3 },
+  { left: 300, width: 80, height: 100, color: 'rgba(37,99,235,0.15)', opacity: 0.9, depth: 0.05, zIndex: 3 },
+  { left: 180, width: 50, height: 80, color: 'rgba(147,197,253,0.12)', opacity: 0.8, depth: 0.1, zIndex: 3 },
+]
+
+// Floating particles
+const particles = Array.from({ length: 20 }, (_, i) => ({
+  left: 10 + (i * 4.2) % 80,
+  top: 10 + (i * 7.3) % 80,
+  size: 1.5 + (i % 3),
+  opacity: 0.15 + (i % 4) * 0.05,
+}))
+
+function handleMouseMove(e: MouseEvent) {
+  mouseX.value = e.clientX
+  mouseY.value = e.clientY
+  if (sceneRef.value) {
+    const rect = sceneRef.value.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    blockOffsetX.value = (e.clientX - centerX) / 60
+    blockOffsetY.value = (e.clientY - centerY) / 60
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('mousemove', handleMouseMove)
+
+  // GSAP entrance animations
+  if (formRef.value) {
+    // Form elements staggered entrance
+    gsap.from(formRef.value.children, {
+      y: 20,
+      opacity: 0,
+      duration: 0.5,
+      stagger: 0.1,
+      ease: 'power2.out',
+      delay: 0.2,
+    })
+  }
+
+  // Left panel scene blocks entrance
+  if (sceneRef.value) {
+    gsap.from(sceneRef.value.querySelectorAll('.absolute'), {
+      scaleY: 0,
+      opacity: 0,
+      transformOrigin: 'bottom',
+      duration: 0.8,
+      stagger: 0.05,
+      ease: 'power3.out',
+      delay: 0.3,
+    })
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', handleMouseMove)
+})
+
+// === Auth Functions ===
+async function handleLogin() {
+  error.value = ''
+  loading.value = true
+  try {
+    const result = await auth.login(password.value)
+    if (result.success) {
+      router.push('/dashboard')
+    } else {
+      error.value = result.error || '登录失败'
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleGuestLogin() {
+  error.value = ''
+  guestLoading.value = true
+  try {
+    await auth.guestLogin()
+    router.push('/dashboard')
+  } finally {
+    guestLoading.value = false
+  }
+}
+
+</script>
+
+<style scoped>
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.25s ease;
+}
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.dialog-enter-active {
+  transition: all 0.25s ease-out;
+}
+.dialog-leave-active {
+  transition: all 0.2s ease-in;
+}
+.dialog-enter-from {
+  opacity: 0;
+}
+.dialog-enter-from > div:last-child {
+  transform: scale(0.95) translateY(8px);
+  opacity: 0;
+}
+.dialog-leave-to {
+  opacity: 0;
+}
+.dialog-leave-to > div:last-child {
+  transform: scale(0.95) translateY(8px);
+  opacity: 0;
+}
+</style>
